@@ -24,8 +24,8 @@ To add Dependy Flutter to our project, we need to update `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  dependy: ^1.0.0
-  dependy_flutter: ^1.0.0
+  dependy: ^1.1.0
+  dependy_flutter: ^1.1.0
 ```
 
 Next, we run this command to install the dependencies:
