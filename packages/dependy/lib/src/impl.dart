@@ -58,17 +58,17 @@ final class DependyProvider<T extends Object> {
   /// Uses the provided [resolve] function to handle dependencies.
   ///
   /// Throws [DependyProviderDisposedException] if the provider has been disposed.
-  T _create(DependyResolve resolve) {
+  Future<T> _create(DependyResolve resolve) async {
     if (_disposed) throw DependyProviderDisposedException((this, _key));
 
-    return _instance ??= _factory(_resolveDependsOn(resolve));
+    return _instance ??= await _factory(_resolveDependsOn(resolve));
   }
 
   /// Returns a function that can resolve dependencies of type [K].
   ///
   /// Throws [DependyProviderMissingDependsOnException] if a non-declared dependency is requested.
   DependyResolve _resolveDependsOn(DependyResolve resolve) {
-    return <K extends Object>() {
+    return <K extends Object>() async {
       if (_dependsOn case final dependsOn?) {
         for (final dependency in dependsOn) {
           if (K == dependency) {
@@ -105,6 +105,7 @@ class DependyModule {
   bool _disposed = false;
 
   /// Disposes all providers in this module.
+  ///
   /// If [disposeSubmodules] is true, disposes submodules as well.
   void dispose({bool disposeSubmodules = false}) {
     if (_disposed) {
@@ -125,10 +126,8 @@ class DependyModule {
 
   /// Calls the provider for the requested type [T].
   ///
-  /// Returns an instance of type [T].
-  ///
   /// Throws [DependyProviderNotFoundException] if no provider for [T] is found.
-  T call<T extends Object>() {
+  Future<T> call<T extends Object>() async {
     if (_disposed) {
       throw DependyModuleDisposedException((this, _key));
     }
@@ -137,14 +136,14 @@ class DependyModule {
     return _callWithModules<T>(this, visited);
   }
 
-  T _callWithModules<T extends Object>(
+  Future<T> _callWithModules<T extends Object>(
     DependyModule module,
     Set<DependyModule> visited,
-  ) {
+  ) async {
     // First check in current module
     for (final provider in module._providers) {
       if (provider._isSameType(T)) {
-        return provider._create(module.call) as T;
+        return await provider._create(module.call) as T;
       }
     }
 
@@ -154,7 +153,7 @@ class DependyModule {
     for (final module in module._modules) {
       if (!visited.contains(module)) {
         try {
-          return module._callWithModules<T>(module, visited);
+          return await module._callWithModules<T>(module, visited);
         } catch (e) {
           // Continue searching, do not throw if not found
           if (e is! DependyProviderNotFoundException) {

@@ -8,7 +8,7 @@ class CounterService {
   int increment() => ++_count;
 }
 
-final module = DependyModule(
+final dependy = DependyModule(
   providers: {
     DependyProvider<CounterService>(
       (_) => CounterService(),
@@ -17,7 +17,7 @@ final module = DependyModule(
 );
 
 void main() async {
-  final counterService = module<CounterService>();
+  final counterService = await dependy<CounterService>();
 
   print('Initial Count: ${counterService.increment()}');
   print('After Increment: ${counterService.increment()}');

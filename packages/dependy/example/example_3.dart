@@ -25,19 +25,25 @@ class CalculatorService {
   }
 }
 
-final module = DependyModule(
+final dependy = DependyModule(
   providers: {
     DependyProvider<ConfigService>(
       (_) => ConfigService(),
     ),
     DependyProvider<LoggerService>(
-      (dependy) => LoggerService(dependy<ConfigService>()),
+      (dependy) async {
+        final configService = await dependy<ConfigService>();
+        return LoggerService(configService);
+      },
       dependsOn: {
         ConfigService,
       },
     ),
     DependyProvider<CalculatorService>(
-      (dependy) => CalculatorService(dependy<LoggerService>()),
+      (dependy) async {
+        final loggerService = await dependy<LoggerService>();
+        return CalculatorService(loggerService);
+      },
       dependsOn: {
         LoggerService,
       },
@@ -46,7 +52,7 @@ final module = DependyModule(
 );
 
 void main() async {
-  final calculatorService = module<CalculatorService>();
+  final calculatorService = await dependy<CalculatorService>();
 
   print('Result: ${calculatorService.multiply(3, 5)}');
 }
