@@ -2,7 +2,7 @@
 
 [![Pub](https://img.shields.io/pub/v/dependy.svg)](https://pub.dev/packages/dependy)
 
-### Content
+### Contents
 
 1. [About](#about)
 2. [Installation](#installation)

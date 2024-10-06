@@ -1,5 +1,21 @@
 # Dependy Flutter
 
+# Contents
+- [Dependy Flutter](#dependy-flutter)
+  - [About](#about)
+  - [Installation](#installation)
+  - [Import](#import)
+  - [Why Scoping is Important](#why-scoping-is-important)
+    - [When to Use Scoping](#when-to-use-scoping)
+  - [Usage](#usage)
+    - [ScopedDependyModuleMixin](#example-1---scopeddependymodulemixin)
+    - [ScopedDependyProvider](#example-2---scopeddependyprovider)
+    - [Share scope using ScopedDependyProvider](#example-3---share-scope-using-scopeddependyprovider)
+    - [Share scope using ScopedDependyModuleMixin](#example-4---share-scope-using-scopeddependymodulemixin)
+    - [Share multiple scopes using ScopedDependyModuleMixin](#example-5---share-multiple-scopes-using-scopeddependymodulemixin)
+    - [Share multiple scopes using ScopedDependyModuleMixin](#example-6---share-multiple-scopes-using-scopeddependymodulemixin)
+
+
 ## About
 
 Dependy Flutter is built on top of Dependy. It adds scoping features to help us manage dependencies within the widget
@@ -55,7 +71,7 @@ import 'package:dependy_flutter/dependy_flutter.dart';
 
 ## Usage
 
-### Example 1 - ScopedDependyModuleMixin
+### ScopedDependyModuleMixin
 
 ```dart
 /// In this example, we will demonstrate how to use [ScopedDependyModuleMixin].
@@ -155,7 +171,7 @@ class _MyHomePageState extends State<MyHomePage> with ScopedDependyModuleMixin {
 
 ```
 
-### Example 2 - ScopedDependyProvider
+### ScopedDependyProvider
 
 ```dart
 /// In this example, we will demonstrate how to use [ScopedDependyProvider] widget.
@@ -259,7 +275,7 @@ class MyHomePage extends StatelessWidget {
 
 ```
 
-### Example 3 - Share scope using ScopedDependyProvider
+### Share scope using ScopedDependyProvider
 
 ````dart
 // From the `example-1` and `example-2` we learned about [ScopedDependyModuleMixin]
@@ -380,7 +396,7 @@ class CounterView extends StatelessWidget {
 
 ````
 
-### Example 4 - Share scope using ScopedDependyModuleMixin
+### Share scope using ScopedDependyModuleMixin
 
 ```dart
 // From the `example-3` we learned about sharing scope using [ScopedDependyProvider]
@@ -499,9 +515,7 @@ class CounterView extends StatelessWidget {
 
 ```
 
-
-
-### Example 5 - Share multiple scopes using ScopedDependyModuleMixin
+### hare multiple scopes using ScopedDependyModuleMixin
 
 ````dart
 // From the previous example we learned about sharing scopes.
@@ -660,7 +674,7 @@ class CounterView extends StatelessWidget {
 
 ````
 
-### Example 6 - Share multiple scopes using ScopedDependyModuleMixin
+### Share multiple scopes using ScopedDependyModuleMixin
 
 ```dart
 // Same usecase as on `example-5` but using [ScopedDependyProvider]
