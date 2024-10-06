@@ -1,0 +1,20 @@
+name: dependy_flutter
+description: "Dependy for Flutter."
+version: 0.0.1
+homepage: https://github.com/xeinebiu/dependy
+
+environment:
+  sdk: ^3.5.3
+  flutter: ">=1.17.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  dependy: ^1.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
