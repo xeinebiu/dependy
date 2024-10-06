@@ -100,9 +100,10 @@ class CounterButton extends StatelessWidget {
     return ScopedDependyConsumer(
       builder: (context, scope) {
         return FloatingActionButton(
-          onPressed: () {
+          onPressed: () async {
             /// When the button is pressed, we call [increment()] to update the counter.
-            scope.dependy<CounterService>().increment();
+            final counterService = await scope.dependy<CounterService>();
+            counterService.increment();
           },
           tooltip: 'Increment',
           child: const Icon(Icons.add),
@@ -120,20 +121,25 @@ class CounterView extends StatelessWidget {
   Widget build(BuildContext context) {
     return ScopedDependyConsumer(
       builder: (context, scope) {
-        /// Here we are watching [CounterService] and rebuilding the latest counter value.
-        final counterService = scope.watchDependy<CounterService>();
+        return FutureBuilder(
+          /// Here we are watching [CounterService] and rebuilding the latest counter value.
+          future: scope.watchDependy<CounterService>(),
+          builder: (context, snapshot) {
+            final counterService = snapshot.data;
 
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '${counterService.counter}',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
+            return Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                const Text(
+                  'You have pushed the button this many times:',
+                ),
+                Text(
+                  '${counterService?.counter}',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+              ],
+            );
+          },
         );
       },
     );

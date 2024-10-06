@@ -96,8 +96,8 @@ class _MyHomePageState extends State<MyHomePage> with ScopedDependyModuleMixin {
       providers: {
         // Provide the [CounterService] on the widget scope
         DependyProvider<CounterService>(
-          (dependy) {
-            final loggerService = dependy<LoggerService>();
+          (dependy) async {
+            final loggerService = await dependy<LoggerService>();
 
             // increment step of 5
             return CounterServiceImpl(5, loggerService);
@@ -125,12 +125,14 @@ class CounterButton extends StatelessWidget {
     return ScopedDependyConsumer(
       builder: (context, scope) {
         return FloatingActionButton(
-          onPressed: () {
+          onPressed: () async {
             // [LoggerService] lives two scopes on this example higher.
-            scope.dependy<LoggerService>().log('CounterButton onPressed');
+            final loggerService = await scope.dependy<LoggerService>();
+            loggerService.log('CounterButton onPressed');
 
             /// When the button is pressed, we call [increment()] to update the counter.
-            scope.dependy<CounterService>().increment();
+            final counterService = await scope.dependy<CounterService>();
+            counterService.increment();
           },
           tooltip: 'Increment',
           child: const Icon(Icons.add),
@@ -148,23 +150,30 @@ class CounterView extends StatelessWidget {
   Widget build(BuildContext context) {
     return ScopedDependyConsumer(
       builder: (context, scope) {
-        /// Here we are watching [CounterService] and rebuilding the latest counter value.
-        final counterService = scope.watchDependy<CounterService>();
+        return FutureBuilder(
+          /// Here we are watching [CounterService] and rebuilding the latest counter value.
+          future: scope.watchDependy<CounterService>(),
+          builder: (context, snapshot) {
+            final counterService = snapshot.data;
 
-        // [LoggerService] lives two scopes on this example higher.
-        scope.dependy<LoggerService>().log('CounterView build');
+            // [LoggerService] lives two scopes on this example higher.
+            scope.dependy<LoggerService>().then(
+                  (value) => value.log("CounterView build"),
+                );
 
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '${counterService.counter}',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
+            return Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                const Text(
+                  'You have pushed the button this many times:',
+                ),
+                Text(
+                  '${counterService?.counter}',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+              ],
+            );
+          },
         );
       },
     );

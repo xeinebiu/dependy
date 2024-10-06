@@ -50,42 +50,48 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> with ScopedDependyModuleMixin {
   @override
   Widget build(BuildContext context) {
-    /// watchDependy is a function from [ScopedDependyModuleMixin].
-    /// It accepts only a [ChangeNotifier] and triggers a rebuild each
-    /// time a change is notified.
-    final state = watchDependy<Example1State>();
+    return FutureBuilder(
+      /// watchDependy is a function from [ScopedDependyModuleMixin].
+      /// It accepts only a [ChangeNotifier] and triggers a rebuild each
+      /// time a change is notified.
+      future: watchDependy<Example1State>(),
+      builder: (context, snapshot) {
+        final state = snapshot.data;
 
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: const Text('Example 1 (Using ScopedDependyModuleMixin)'),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              'You have pushed the button this many times:',
+        return Scaffold(
+          appBar: AppBar(
+            backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+            title: const Text('Example 1 (Using ScopedDependyModuleMixin)'),
+          ),
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  'You have pushed the button this many times:',
+                ),
+                Text(
+                  '${state?.counter}',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+              ],
             ),
-            Text(
-              '${state.counter}',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          /// Here we can use the state.incrementCounter() directly.
-          ///
-          /// But for demonstration purposes, when we do not need to watch a service,
-          /// we can use the function `dependy` from [ScopedDependyModuleMixin]
-          /// to read the service without watching it.
-          dependy<Example1State>().incrementCounter();
-        },
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ),
+          ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: () async {
+              /// Here we can use the state.incrementCounter() directly.
+              ///
+              /// But for demonstration purposes, when we do not need to watch a service,
+              /// we can use the function `dependy` from [ScopedDependyModuleMixin]
+              /// to read the service without watching it.
+              final state = await dependy<Example1State>();
+              state.incrementCounter();
+            },
+            tooltip: 'Increment',
+            child: const Icon(Icons.add),
+          ),
+        );
+      },
     );
   }
 
@@ -109,9 +115,9 @@ class _MyHomePageState extends State<MyHomePage> with ScopedDependyModuleMixin {
     return DependyModule(
       providers: {
         DependyProvider<Example1State>(
-          (dependy) {
+          (dependy) async {
             // Here we resolve the logger service from [example1ServicesModule].
-            final logger = dependy<LoggerService>();
+            final logger = await dependy<LoggerService>();
 
             // We finally return the instance to be used in [_MyHomePageState].
             return Example1State(logger);
