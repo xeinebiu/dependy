@@ -16,6 +16,6 @@ final example4ServicesModule = DependyModule(
       dependsOn: {
         LoggerService,
       },
-    )
+    ),
   },
 );

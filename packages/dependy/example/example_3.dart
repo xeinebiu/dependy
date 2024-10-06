@@ -1,7 +1,7 @@
 import 'package:dependy/dependy.dart';
 
 class ConfigService {
-  final String appName = "DependyExample";
+  final String appName = 'DependyExample';
 }
 
 class LoggerService {

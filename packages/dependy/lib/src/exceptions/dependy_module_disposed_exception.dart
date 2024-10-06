@@ -15,7 +15,7 @@ class DependyModuleDisposedException implements Exception {
   @override
   String toString() {
     final message = this.message;
-    if (message == null) return "DependyModuleDisposedException";
-    return "DependyModuleDisposedException: $message";
+    if (message == null) return 'DependyModuleDisposedException';
+    return 'DependyModuleDisposedException: $message';
   }
 }

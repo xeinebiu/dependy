@@ -1,7 +1,7 @@
 import 'package:dependy/dependy.dart';
 
 class DatabaseService {
-  void connect() => print("Connected to Database");
+  void connect() => print('Connected to Database');
 }
 
 class ApiService {
@@ -10,13 +10,13 @@ class ApiService {
   ApiService(this._db);
 
   void fetchData() {
-    print("Fetching data from API...");
+    print('Fetching data from API...');
     _db.connect();
   }
 }
 
 class AuthService {
-  void authenticate() => print("User authenticated");
+  void authenticate() => print('User authenticated');
 }
 
 class PaymentService {
@@ -26,7 +26,7 @@ class PaymentService {
 
   void processPayment() {
     _auth.authenticate();
-    print("Payment processed");
+    print('Payment processed');
   }
 }
 

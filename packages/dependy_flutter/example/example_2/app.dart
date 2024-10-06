@@ -57,7 +57,7 @@ class MyHomePage extends StatelessWidget {
         return Scaffold(
           appBar: AppBar(
             backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-            title: const Text("Example 2 (ScopedDependyProvider)"),
+            title: const Text('Example 2 (ScopedDependyProvider)'),
           ),
           body: Center(
             child: Column(
@@ -113,7 +113,7 @@ class MyHomePage extends StatelessWidget {
                 LoggerService,
                 // Our [Example2State] depends on [LoggerService].
               },
-            )
+            ),
           },
           modules: {
             example2ServicesModule,

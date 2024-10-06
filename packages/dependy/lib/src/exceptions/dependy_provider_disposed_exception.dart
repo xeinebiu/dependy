@@ -15,7 +15,7 @@ class DependyProviderDisposedException implements Exception {
   @override
   String toString() {
     final message = this.message;
-    if (message == null) return "DependyProviderDisposedException";
-    return "DependyProviderDisposedException: $message";
+    if (message == null) return 'DependyProviderDisposedException';
+    return 'DependyProviderDisposedException: $message';
   }
 }

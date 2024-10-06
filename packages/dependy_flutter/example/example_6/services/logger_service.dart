@@ -5,6 +5,6 @@ abstract class LoggerService {
 class ConsoleLoggerService extends LoggerService {
   @override
   void log(String message) {
-    print("ConsoleLogger: $message");
+    print('ConsoleLogger: $message');
   }
 }

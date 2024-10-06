@@ -24,7 +24,7 @@ class DependyDuplicateProviderException implements Exception {
   @override
   String toString() {
     final message = this.message;
-    if (message == null) return "DependyDuplicateProviderException";
-    return "DependyDuplicateProviderException: $message";
+    if (message == null) return 'DependyDuplicateProviderException';
+    return 'DependyDuplicateProviderException: $message';
   }
 }

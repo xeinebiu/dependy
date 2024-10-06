@@ -285,7 +285,7 @@ final singletonModule = DependyModule(
   key: "singleton_module",
   providers: {
     DependyProvider<LoggerService>(
-          (resolve) => ConsoleLoggerService(),
+          (_) => ConsoleLoggerService(),
       key: "singleton_logger_service",
     ),
     DependyProvider<DatabaseService>(
@@ -453,7 +453,7 @@ class CounterService {
 final module = DependyModule(
   providers: {
     DependyProvider<CounterService>(
-          (resolve) => CounterService(),
+          (_) => CounterService(),
     ),
   },
 );
@@ -488,10 +488,10 @@ class MathService {
 final module = DependyModule(
   providers: {
     DependyProvider<LoggerService>(
-          (resolve) => LoggerService(),
+          (_) => LoggerService(),
     ),
     DependyProvider<MathService>(
-          (resolve) => MathService(),
+          (_) => MathService(),
     )
   },
 );
@@ -542,7 +542,7 @@ class CalculatorService {
 final module = DependyModule(
   providers: {
     DependyProvider<ConfigService>(
-      (resolve) => ConfigService(),
+      (_) => ConfigService(),
     ),
     DependyProvider<LoggerService>(
       (dependy) => LoggerService(dependy<ConfigService>()),
@@ -551,7 +551,7 @@ final module = DependyModule(
       },
     ),
     DependyProvider<CalculatorService>(
-      (resolve) => CalculatorService(dependy<LoggerService>()),
+      (dependy) => CalculatorService(dependy<LoggerService>()),
       dependsOn: {
         LoggerService,
       },

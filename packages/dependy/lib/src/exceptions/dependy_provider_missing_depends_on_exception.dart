@@ -1,4 +1,3 @@
-
 /// This exception is thrown when a provider tries to resolve a dependency
 /// that has not been declared in its `dependsOn` set.
 ///
@@ -18,7 +17,7 @@ class DependyProviderMissingDependsOnException implements Exception {
   @override
   String toString() {
     final message = this.message;
-    if (message == null) return "DependyProviderMissingDependsOnException";
-    return "DependyProviderMissingDependsOnException: $message";
+    if (message == null) return 'DependyProviderMissingDependsOnException';
+    return 'DependyProviderMissingDependsOnException: $message';
   }
 }

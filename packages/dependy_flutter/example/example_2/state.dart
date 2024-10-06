@@ -15,13 +15,13 @@ class Example2State with ChangeNotifier {
     _counter++;
     notifyListeners();
 
-    loggerService.log("incrementCounter $counter");
+    loggerService.log('incrementCounter $counter');
   }
 
   void decrementCounter() {
     _counter--;
     notifyListeners();
 
-    loggerService.log("decrementCounter $counter");
+    loggerService.log('decrementCounter $counter');
   }
 }
