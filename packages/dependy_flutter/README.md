@@ -1,20 +1,17 @@
 # Dependy Flutter
 
-# Contents
-- [Dependy Flutter](#dependy-flutter)
-  - [About](#about)
-  - [Installation](#installation)
-  - [Import](#import)
-  - [Why Scoping is Important](#why-scoping-is-important)
-    - [When to Use Scoping](#when-to-use-scoping)
-  - [Usage](#usage)
-    - [ScopedDependyModuleMixin](#example-1---scopeddependymodulemixin)
-    - [ScopedDependyProvider](#example-2---scopeddependyprovider)
-    - [Share scope using ScopedDependyProvider](#example-3---share-scope-using-scopeddependyprovider)
-    - [Share scope using ScopedDependyModuleMixin](#example-4---share-scope-using-scopeddependymodulemixin)
-    - [Share multiple scopes using ScopedDependyModuleMixin](#example-5---share-multiple-scopes-using-scopeddependymodulemixin)
-    - [Share multiple scopes using ScopedDependyModuleMixin](#example-6---share-multiple-scopes-using-scopeddependymodulemixin)
-
+### Contents
+- [About](#about)
+- [Installation](#installation)
+- [Import](#import)
+- [Why Scoping is Important](#why-scoping-is-important)
+  - [When to Use Scoping](#when-to-use-scoping)
+- [Usage](#usage)
+  - [ScopedDependyModuleMixin](#scopeddependymodulemixin)
+  - [ScopedDependyProvider](#scopeddependyprovider)
+  - [Share scope using ScopedDependyProvider](#share-scope-using-scopeddependyprovider)
+  - [Share scope using ScopedDependyModuleMixin](#share-scope-using-scopeddependymodulemixin)
+  - [Share multiple scopes using ScopedDependyModuleMixin](#share-multiple-scopes-using-scopeddependymodulemixin)
 
 ## About
 
@@ -515,7 +512,7 @@ class CounterView extends StatelessWidget {
 
 ```
 
-### hare multiple scopes using ScopedDependyModuleMixin
+### Share multiple scopes using ScopedDependyModuleMixin
 
 ````dart
 // From the previous example we learned about sharing scopes.
@@ -679,34 +676,34 @@ class CounterView extends StatelessWidget {
 ```dart
 // Same usecase as on `example-5` but using [ScopedDependyProvider]
 
-lass _MyAppState extends State<MyApp> {
-@override
-Widget build(BuildContext context) {
-  return ScopedDependyProvider(
-    builder: (context, scope) {
-      return MaterialApp(
-        title:
-        'Example 6 (Share Multiple Scopes using ScopedDependyProvider)',
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-          useMaterial3: true,
-        ),
-        home: const MyHomePage(),
-      );
-    },
-    moduleBuilder: (_) {
-      return DependyModule(
-        providers: {
-          // Provide the Logger service on the widget scope
-          DependyProvider<LoggerService>(
-                    (_) => ConsoleLoggerService(),
+class _MyAppState extends State<MyApp> {
+  @override
+  Widget build(BuildContext context) {
+    return ScopedDependyProvider(
+      builder: (context, scope) {
+        return MaterialApp(
+          title:
+          'Example 6 (Share Multiple Scopes using ScopedDependyProvider)',
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+            useMaterial3: true,
           ),
-        },
-        modules: {},
-      );
-    },
-  );
-}
+          home: const MyHomePage(),
+        );
+      },
+      moduleBuilder: (_) {
+        return DependyModule(
+          providers: {
+            // Provide the Logger service on the widget scope
+            DependyProvider<LoggerService>(
+                      (_) => ConsoleLoggerService(),
+            ),
+          },
+          modules: {},
+        );
+      },
+    );
+  }
 }
 
 class MyHomePage extends StatefulWidget {
