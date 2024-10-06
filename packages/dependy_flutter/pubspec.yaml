@@ -1,6 +1,7 @@
 name: dependy_flutter
-description: "Dependy for Flutter."
-version: 0.0.1
+description: "Dependy Flutter is built on top of Dependy. It adds scoping features to help us manage dependencies within the widget
+tree of our Flutter applications."
+version: 1.0.1
 homepage: https://github.com/xeinebiu/dependy
 
 environment:
@@ -10,7 +11,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  dependy: ^1.0.0
+  dependy: ^1.0.1
 
 dev_dependencies:
   flutter_test:

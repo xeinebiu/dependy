@@ -143,7 +143,7 @@ final loggingModule = DependyModule(
 
 // When you are done with the module, dispose of its providers
 // provide disposeSubmodules: true o also dispose of submodules (default: false)
-loggingModule.dispose(disposeSubmodules: true); // Disposes only the providers
+loggingModule.dispose(disposeSubmodules: true);
 ```
 
 ---

@@ -23,7 +23,7 @@ final class DependyProvider<T extends Object> {
         _key = key,
         _dependsOn = dependsOn,
         _type = T,
-        _dispose = dispose {}
+        _dispose = dispose;
 
   final DependyFactory<T> _factory;
 
