@@ -7,5 +7,5 @@ detection.
 
 ### Packages
 
-- [Dependy](/package/dependy/README.md)
-- [Dependy Flutter](/package/dependy_flutter/README.md)
+- [Dependy](/packages/dependy/README.md)
+- [Dependy Flutter](/packages/dependy_flutter/README.md)
