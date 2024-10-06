@@ -1,3 +1,7 @@
+## 1.1.0
+
+* Feat: Asynchronous factories (Resolve dependencies asynchronously)
+
 ## 1.0.2
 
 * Fix dart analyser issues
