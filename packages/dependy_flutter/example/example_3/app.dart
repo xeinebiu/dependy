@@ -51,7 +51,7 @@ class MyHomePage extends StatelessWidget {
         return Scaffold(
           appBar: AppBar(
             backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-            title: const Text("Example 3 (Share Scope ScopedDependyProvider)"),
+            title: const Text('Example 3 (Share Scope ScopedDependyProvider)'),
           ),
           body: const Center(
             /// Notice that we are not passing any state directly to [CounterView].

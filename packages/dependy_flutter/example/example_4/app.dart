@@ -48,7 +48,7 @@ class _MyHomePageState extends State<MyHomePage> with ScopedDependyModuleMixin {
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-          title: const Text("Example 4 (Share Scope ScopedDependyModuleMixin)"),
+          title: const Text('Example 4 (Share Scope ScopedDependyModuleMixin)'),
         ),
         body: const Center(
           /// Notice that we are not passing any state directly to [CounterView].

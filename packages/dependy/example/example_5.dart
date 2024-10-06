@@ -8,7 +8,7 @@ abstract class LoggerService {
 class ConsoleLoggerService extends LoggerService {
   @override
   void log(String message) {
-    print("[Logger]: $message");
+    print('[Logger]: $message');
   }
 }
 // endregion
@@ -27,12 +27,12 @@ class SqlDatabaseService extends DatabaseService {
 
   @override
   void connect() {
-    _logger.log("Connected to Sql Database");
+    _logger.log('Connected to Sql Database');
   }
 
   @override
   void close() {
-    _logger.log("Closed Sql Database");
+    _logger.log('Closed Sql Database');
   }
 }
 
@@ -43,12 +43,12 @@ class SqliteDatabaseService extends DatabaseService {
 
   @override
   void connect() {
-    _logger.log("Connected to Sqlite Database");
+    _logger.log('Connected to Sqlite Database');
   }
 
   @override
   void close() {
-    _logger.log("Closed Sqlite Database");
+    _logger.log('Closed Sqlite Database');
   }
 }
 // endregion
@@ -68,13 +68,13 @@ class ApiServiceImpl extends ApiService {
 
   @override
   void fetchData() {
-    _logger.log("Fetching data from API...");
+    _logger.log('Fetching data from API...');
     _db.connect();
   }
 
   @override
   void dispose() {
-    _logger.log("Disposing $this");
+    _logger.log('Disposing $this');
   }
 }
 
@@ -86,31 +86,31 @@ class MockApiService extends ApiService {
 
   @override
   void fetchData() {
-    _logger.log("Mocking API data...");
+    _logger.log('Mocking API data...');
     _db.connect();
   }
 
   @override
   void dispose() {
-    _logger.log("Disposing $this");
+    _logger.log('Disposing $this');
   }
 }
 // endregion
 
 // Singleton module: provides services that live across the application
 final singletonModule = DependyModule(
-  key: "singleton_module",
+  key: 'singleton_module',
   providers: {
     DependyProvider<LoggerService>(
       (resolve) => ConsoleLoggerService(),
-      key: "singleton_logger_service",
+      key: 'singleton_logger_service',
     ),
     DependyProvider<DatabaseService>(
       (dependy) {
         final logger = dependy<LoggerService>();
         return SqlDatabaseService(logger);
       },
-      key: "singleton_database_service",
+      key: 'singleton_database_service',
       dependsOn: {LoggerService},
     ),
     DependyProvider<ApiService>(
@@ -119,7 +119,7 @@ final singletonModule = DependyModule(
         final logger = dependy<LoggerService>();
         return ApiServiceImpl(databaseService, logger);
       },
-      key: "singleton_api_service",
+      key: 'singleton_api_service',
       dependsOn: {DatabaseService, LoggerService},
     ),
   },
@@ -127,7 +127,7 @@ final singletonModule = DependyModule(
 
 // Scoped module: provides services that live temporarily and are disposed when done
 final scopedModule = DependyModule(
-  key: "scoped_module",
+  key: 'scoped_module',
   providers: {
     // Here we declare a different implementation of DatabaseService [SqliteDatabaseService]
     // for scoped usage. Scoped services are designed to be used in a temporary context.
@@ -136,7 +136,7 @@ final scopedModule = DependyModule(
         final logger = dependy<LoggerService>();
         return SqliteDatabaseService(logger);
       },
-      key: "scoped_database_service",
+      key: 'scoped_database_service',
       dependsOn: {LoggerService},
       dispose: (database) {
         // Close the database connections when the [DependyProvider] is disposed.
@@ -168,7 +168,7 @@ final scopedModule = DependyModule(
 );
 
 void main() async {
-  print("=== Scoped Module Usage ===");
+  print('=== Scoped Module Usage ===');
   final scopedApiService = scopedModule<ApiService>();
   scopedApiService.fetchData();
   scopedModule.dispose(); // Disposes all services in the [scopedModule]
@@ -180,7 +180,7 @@ void main() async {
   // [Logger]: Disposing Instance of 'MockApiService'
 
   // Demonstrating the singleton behavior (persistent services)
-  print("\n=== Singleton Module Usage After Scoped Module Disposed ===");
+  print('\n=== Singleton Module Usage After Scoped Module Disposed ===');
   final singletonApiService = singletonModule<ApiService>();
   singletonApiService.fetchData();
 

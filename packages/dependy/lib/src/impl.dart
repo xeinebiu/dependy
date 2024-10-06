@@ -282,12 +282,14 @@ class DependyModule {
       for (final otherProvider in _providers) {
         if (provider != otherProvider &&
             provider._isSameType(otherProvider._type)) {
-          throw DependyDuplicateProviderException((
-            this,
-            _key,
-            provider,
-            otherProvider,
-          ));
+          throw DependyDuplicateProviderException(
+            (
+              this,
+              _key,
+              provider,
+              otherProvider,
+            ),
+          );
         }
       }
     }

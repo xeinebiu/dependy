@@ -58,7 +58,7 @@ class _MyHomePageState extends State<MyHomePage> with ScopedDependyModuleMixin {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: const Text("Example 1 (Using ScopedDependyModuleMixin)"),
+        title: const Text('Example 1 (Using ScopedDependyModuleMixin)'),
       ),
       body: Center(
         child: Column(
@@ -119,7 +119,7 @@ class _MyHomePageState extends State<MyHomePage> with ScopedDependyModuleMixin {
           dependsOn: {
             LoggerService, // Our [Example1State] depends on [LoggerService].
           },
-        )
+        ),
       },
       modules: {
         example1ServicesModule,

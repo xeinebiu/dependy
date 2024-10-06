@@ -17,7 +17,7 @@ final module = DependyModule(
     ),
     DependyProvider<MathService>(
       (_) => MathService(),
-    )
+    ),
   },
 );
 

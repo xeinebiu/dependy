@@ -79,7 +79,8 @@ class _MyHomePageState extends State<MyHomePage> with ScopedDependyModuleMixin {
         appBar: AppBar(
           backgroundColor: Theme.of(context).colorScheme.inversePrimary,
           title: const Text(
-              'Example 5 (Share Multiple Scopes using ScopedDependyModuleMixin)'),
+            'Example 5 (Share Multiple Scopes using ScopedDependyModuleMixin)',
+          ),
         ),
         body: const Center(
           child: CounterView(),
@@ -126,7 +127,7 @@ class CounterButton extends StatelessWidget {
         return FloatingActionButton(
           onPressed: () {
             // [LoggerService] lives two scopes on this example higher.
-            scope.dependy<LoggerService>().log("CounterButton onPressed");
+            scope.dependy<LoggerService>().log('CounterButton onPressed');
 
             /// When the button is pressed, we call [increment()] to update the counter.
             scope.dependy<CounterService>().increment();
@@ -151,7 +152,7 @@ class CounterView extends StatelessWidget {
         final counterService = scope.watchDependy<CounterService>();
 
         // [LoggerService] lives two scopes on this example higher.
-        scope.dependy<LoggerService>().log("CounterView build");
+        scope.dependy<LoggerService>().log('CounterView build');
 
         return Column(
           mainAxisAlignment: MainAxisAlignment.center,

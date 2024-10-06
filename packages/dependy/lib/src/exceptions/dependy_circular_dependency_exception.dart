@@ -16,7 +16,7 @@ class DependyCircularDependencyException implements Exception {
   @override
   String toString() {
     final message = this.message;
-    if (message == null) return "DependyCircularDependencyException";
-    return "DependyCircularDependencyException: $message";
+    if (message == null) return 'DependyCircularDependencyException';
+    return 'DependyCircularDependencyException: $message';
   }
 }

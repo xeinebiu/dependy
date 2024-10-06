@@ -1,4 +1,3 @@
-
 /// This exception occurs when you try to resolve a provider for a specific type,
 /// but no provider is registered for that type within the module or its submodules.
 ///
@@ -13,7 +12,7 @@ class DependyProviderNotFoundException implements Exception {
   @override
   String toString() {
     final message = this.message;
-    if (message == null) return "DependyProviderNotFoundException";
-    return "DependyProviderNotFoundException: $message";
+    if (message == null) return 'DependyProviderNotFoundException';
+    return 'DependyProviderNotFoundException: $message';
   }
 }

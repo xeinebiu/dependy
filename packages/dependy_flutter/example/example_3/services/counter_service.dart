@@ -29,8 +29,8 @@ class CounterServiceImpl extends CounterService {
     _counter -= _step;
     notifyListeners();
 
-    loggerService.log("Decremented counter by $_step");
-    loggerService.log("Current counter value $_counter");
+    loggerService.log('Decremented counter by $_step');
+    loggerService.log('Current counter value $_counter');
   }
 
   @override
@@ -38,7 +38,7 @@ class CounterServiceImpl extends CounterService {
     _counter += _step;
     notifyListeners();
 
-    loggerService.log("Incremented counter by $_step");
-    loggerService.log("Current counter value $_counter");
+    loggerService.log('Incremented counter by $_step');
+    loggerService.log('Current counter value $_counter');
   }
 }
