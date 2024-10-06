@@ -1,16 +1,11 @@
-# dependy_example
+## Dependy
 
-A new Flutter project.
+**Dependy** is a lightweight and flexible dependency injection (DI) library for Dart. It simplifies
+the management of services and their dependencies, making your code more modular, maintainable, and
+testable. Dependy also supports hierarchical modules, dependency tracking, and circular dependency
+detection.
 
-## Getting Started
+### Packages
 
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- [Dependy](/package/dependy/README.md)
+- [Dependy Flutter](/package/dependy_flutter/README.md)
