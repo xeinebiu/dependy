@@ -36,7 +36,10 @@ final module1 = DependyModule(
       (_) => DatabaseService(),
     ),
     DependyProvider<ApiService>(
-      (dependy) => ApiService(dependy<DatabaseService>()),
+      (dependy) async {
+        final databaseService = await dependy<DatabaseService>();
+        return ApiService(databaseService);
+      },
       dependsOn: {
         DatabaseService,
       },
@@ -50,7 +53,10 @@ final module2 = DependyModule(
       (_) => AuthService(),
     ),
     DependyProvider<PaymentService>(
-      (dependy) => PaymentService(dependy<AuthService>()),
+      (dependy) async {
+        final authService = await dependy<AuthService>();
+        return PaymentService(authService);
+      },
       dependsOn: {
         AuthService,
       },
@@ -64,7 +70,10 @@ final module3 = DependyModule(
       (_) => AuthService(),
     ),
     DependyProvider<PaymentService>(
-      (resolve) => PaymentService(resolve<AuthService>()),
+      (dependy) async {
+        final authService = await dependy<AuthService>();
+        return PaymentService(authService);
+      },
       dependsOn: {
         AuthService,
       },
@@ -74,12 +83,15 @@ final module3 = DependyModule(
 
 final mainModule = DependyModule(
   providers: {},
-  modules: {module1, module2},
+  modules: {
+    module1,
+    module2,
+  },
 );
 
 void main() async {
-  final apiService = mainModule<ApiService>();
-  final paymentService = mainModule<PaymentService>();
+  final apiService = await mainModule<ApiService>();
+  final paymentService = await mainModule<PaymentService>();
 
   apiService.fetchData();
   paymentService.processPayment();

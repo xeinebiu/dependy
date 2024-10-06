@@ -9,8 +9,8 @@ final example3ServicesModule = DependyModule(
       (_) => ConsoleLoggerService(),
     ),
     DependyProvider<CounterService>(
-      (dependy) {
-        final loggerService = dependy<LoggerService>();
+      (dependy) async {
+        final loggerService = await dependy<LoggerService>();
         return CounterServiceImpl(1, loggerService);
       },
       dependsOn: {

@@ -9,13 +9,13 @@ final class ScopedDependy {
   const ScopedDependy._(this.dependy, this.watchDependy);
 
   /// Retrieves a dependency of type [T] from the dependency graph.
-  final T Function<T extends Object>() dependy;
+  final Future<T> Function<T extends Object>() dependy;
 
   /// Retrieves a [ChangeNotifier] dependency of type [T] from the dependency graph
   /// and registers a listener to rebuild the UI when the notifier changes.
   ///
   /// This method is safe to call multiple times, as the listener will only be registered once.
-  final T Function<T extends ChangeNotifier>() watchDependy;
+  final Future<T> Function<T extends ChangeNotifier>() watchDependy;
 }
 
 /// Retrieves the nearest [ScopedDependy] from the widget tree.
@@ -105,13 +105,14 @@ mixin ScopedDependyModuleMixin<W extends StatefulWidget> on State<W> {
   }
 
   /// Retrieves a dependency of type [T] from the dependency graph.
-  T dependy<T extends Object>() => _dependy<T>();
+  Future<T> dependy<T extends Object>() => _dependy<T>();
 
   /// Retrieves a [ChangeNotifier] dependency of type [T] from the dependency graph
   /// and registers a listener to rebuild the UI when the notifier changes.
   ///
   /// This method is safe to call multiple times, as the listener will only be registered once.
-  T watchDependy<T extends ChangeNotifier>() => _dependy<T>(watch: true);
+  Future<T> watchDependy<T extends ChangeNotifier>() =>
+      _dependy<T>(watch: true);
 
   /// Retrieves a [DependyModule] from the nearest graph.
   DependyModule parentModule() {
@@ -131,9 +132,9 @@ mixin ScopedDependyModuleMixin<W extends StatefulWidget> on State<W> {
     return _cachedDependyModule ??= moduleBuilder();
   }
 
-  T _dependy<T extends Object>({bool watch = false}) {
+  Future<T> _dependy<T extends Object>({bool watch = false}) async {
     final module = _cachedModuleBuilder();
-    final obj = module<T>();
+    final obj = await module<T>();
 
     if (watch) {
       if (obj case final ChangeNotifier notifier) {
@@ -262,17 +263,17 @@ class _ScopedDependyConsumerState extends State<ScopedDependyConsumer> {
     _listeningObjects.clear();
   }
 
-  T _dependy<T extends Object>(
+  Future<T> _dependy<T extends Object>(
     BuildContext context, {
     bool watch = false,
-  }) {
+  }) async {
     final providedModule = widget.module;
     T obj;
     if (providedModule != null) {
-      obj = providedModule<T>();
+      obj = await providedModule<T>();
     } else {
       final module = getDependyScope(context);
-      obj = module.dependy<T>();
+      obj = await module.dependy<T>();
     }
 
     if (watch) {

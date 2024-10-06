@@ -24,8 +24,8 @@ To add Dependy Flutter to our project, we need to update `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  dependy: ^1.0.0
-  dependy_flutter: ^1.0.0
+  dependy: ^1.1.0
+  dependy_flutter: ^1.1.0
 ```
 
 Next, we run this command to install the dependencies:
@@ -71,16 +71,13 @@ import 'package:dependy_flutter/dependy_flutter.dart';
 ### ScopedDependyModuleMixin
 
 ```dart
-/// In this example, we will demonstrate how to use [ScopedDependyModuleMixin].
-///
-/// [ScopedDependyModuleMixin] can only be applied to a [StatefulWidget].
-///
-/// It provides scoping functionality to the applied [Widget].
+// In this example, we will demonstrate how to use [ScopedDependyModuleMixin].
+//
+// [ScopedDependyModuleMixin] can only be applied to a [StatefulWidget].
+//
+// It provides scoping functionality to the applied [Widget].
+//
 
-/// We apply the [ScopedDependyModuleMixin] to provide scoping.
-/// This scoping manages the lifespan of the [Example1State] service.
-///
-/// [Example1State] will exist as long as [_MyHomePageState] does.
 /// We apply the [ScopedDependyModuleMixin] to provide scoping.
 /// This scoping manages the lifespan of the [Example1State] service.
 ///
@@ -88,42 +85,48 @@ import 'package:dependy_flutter/dependy_flutter.dart';
 class _MyHomePageState extends State<MyHomePage> with ScopedDependyModuleMixin {
   @override
   Widget build(BuildContext context) {
-    /// watchDependy is a function from [ScopedDependyModuleMixin].
-    /// It accepts only a [ChangeNotifier] and triggers a rebuild each
-    /// time a change is notified.
-    final state = watchDependy<Example1State>();
+    return FutureBuilder(
+      /// watchDependy is a function from [ScopedDependyModuleMixin].
+      /// It accepts only a [ChangeNotifier] and triggers a rebuild each
+      /// time a change is notified.
+      future: watchDependy<Example1State>(),
+      builder: (context, snapshot) {
+        final state = snapshot.data;
 
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: const Text("Example 1 (Using ScopedDependyModuleMixin)"),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              'You have pushed the button this many times:',
+        return Scaffold(
+          appBar: AppBar(
+            backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+            title: const Text('Example 1 (Using ScopedDependyModuleMixin)'),
+          ),
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  'You have pushed the button this many times:',
+                ),
+                Text(
+                  '${state?.counter}',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+              ],
             ),
-            Text(
-              '${state.counter}',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          /// Here we can use the state.incrementCounter() directly.
-          ///
-          /// But for demonstration purposes, when we do not need to watch a service,
-          /// we can use the function `dependy` from [ScopedDependyModuleMixin]
-          /// to read the service without watching it.
-          dependy<Example1State>().incrementCounter();
-        },
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ),
+          ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: () async {
+              /// Here we can use the state.incrementCounter() directly.
+              ///
+              /// But for demonstration purposes, when we do not need to watch a service,
+              /// we can use the function `dependy` from [ScopedDependyModuleMixin]
+              /// to read the service without watching it.
+              final state = await dependy<Example1State>();
+              state.incrementCounter();
+            },
+            tooltip: 'Increment',
+            child: const Icon(Icons.add),
+          ),
+        );
+      },
     );
   }
 
@@ -147,9 +150,9 @@ class _MyHomePageState extends State<MyHomePage> with ScopedDependyModuleMixin {
     return DependyModule(
       providers: {
         DependyProvider<Example1State>(
-                  (dependy) {
+                  (dependy) async {
             // Here we resolve the logger service from [example1ServicesModule].
-            final logger = dependy<LoggerService>();
+            final logger = await dependy<LoggerService>();
 
             // We finally return the instance to be used in [_MyHomePageState].
             return Example1State(logger);
@@ -157,7 +160,7 @@ class _MyHomePageState extends State<MyHomePage> with ScopedDependyModuleMixin {
           dependsOn: {
             LoggerService, // Our [Example1State] depends on [LoggerService].
           },
-        )
+        ),
       },
       modules: {
         example1ServicesModule,
@@ -166,12 +169,13 @@ class _MyHomePageState extends State<MyHomePage> with ScopedDependyModuleMixin {
   }
 }
 
+
 ```
 
 ### ScopedDependyProvider
 
 ```dart
-/// In this example, we will demonstrate how to use [ScopedDependyProvider] widget.
+// In this example, we will demonstrate how to use [ScopedDependyProvider] widget.
 
 /// No [ScopedDependyModuleMixin] is applied and [MyHomePage] is a [StatelessWidget]
 class MyHomePage extends StatelessWidget {
@@ -193,38 +197,43 @@ class MyHomePage extends StatelessWidget {
     ///
     return ScopedDependyProvider(
       builder: (context, scope) {
-        /// Here are are retrieving an instance of [Example2State] but also
-        /// watching it for changes.
-        ///
-        /// Any change emitted by it will trigger a rebuild.
-        final state = scope.watchDependy<Example2State>();
+        return FutureBuilder(
+          /// Here are are retrieving an instance of [Example2State] but also
+          /// watching it for changes.
+          ///
+          /// Any change emitted by it will trigger a rebuild.
+          future: scope.watchDependy<Example2State>(),
+          builder: (context, snapshot) {
+            final state = snapshot.data;
 
-        return Scaffold(
-          appBar: AppBar(
-            backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-            title: const Text("Example 2 (ScopedDependyProvider)"),
-          ),
-          body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                const Text(
-                  'You have pushed the button this many times:',
+            return Scaffold(
+              appBar: AppBar(
+                backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+                title: const Text('Example 2 (ScopedDependyProvider)'),
+              ),
+              body: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    const Text(
+                      'You have pushed the button this many times:',
+                    ),
+                    Text(
+                      '${state?.counter}',
+                      style: Theme.of(context).textTheme.headlineMedium,
+                    ),
+                  ],
                 ),
-                Text(
-                  '${state.counter}',
-                  style: Theme.of(context).textTheme.headlineMedium,
-                ),
-              ],
-            ),
-          ),
-          floatingActionButton: FloatingActionButton(
-            onPressed: () {
-              state.incrementCounter();
-            },
-            tooltip: 'Increment',
-            child: const Icon(Icons.add),
-          ),
+              ),
+              floatingActionButton: FloatingActionButton(
+                onPressed: () {
+                  state?.incrementCounter();
+                },
+                tooltip: 'Increment',
+                child: const Icon(Icons.add),
+              ),
+            );
+          },
         );
       },
 
@@ -247,9 +256,9 @@ class MyHomePage extends StatelessWidget {
         return DependyModule(
           providers: {
             DependyProvider<Example2State>(
-                      (dependy) {
+                      (dependy) async {
                 // Here we resolve the logger service from [example2ServicesModule].
-                final logger = dependy<LoggerService>();
+                final logger = await dependy<LoggerService>();
 
                 // We finally return the instance to be used in [_MyHomePageState].
                 return Example2State(logger);
@@ -258,7 +267,7 @@ class MyHomePage extends StatelessWidget {
                 LoggerService,
                 // Our [Example2State] depends on [LoggerService].
               },
-            )
+            ),
           },
           modules: {
             example2ServicesModule,
@@ -268,8 +277,6 @@ class MyHomePage extends StatelessWidget {
     );
   }
 }
-
-
 ```
 
 ### Share scope using ScopedDependyProvider
@@ -300,7 +307,7 @@ class MyHomePage extends StatelessWidget {
         return Scaffold(
           appBar: AppBar(
             backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-            title: const Text("Example 3 (Share Scope ScopedDependyProvider)"),
+            title: const Text('Example 3 (Share Scope ScopedDependyProvider)'),
           ),
           body: const Center(
             /// Notice that we are not passing any state directly to [CounterView].
@@ -351,9 +358,10 @@ class CounterButton extends StatelessWidget {
     return ScopedDependyConsumer(
       builder: (context, scope) {
         return FloatingActionButton(
-          onPressed: () {
+          onPressed: () async {
             /// When the button is pressed, we call [increment()] to update the counter.
-            scope.dependy<CounterService>().increment();
+            final counterService = await scope.dependy<CounterService>();
+            counterService.increment();
           },
           tooltip: 'Increment',
           child: const Icon(Icons.add),
@@ -371,26 +379,30 @@ class CounterView extends StatelessWidget {
   Widget build(BuildContext context) {
     return ScopedDependyConsumer(
       builder: (context, scope) {
-        /// Here we are watching [CounterService] and rebuilding the latest counter value.
-        final counterService = scope.watchDependy<CounterService>();
+        return FutureBuilder(
+          /// Here we are watching [CounterService] and rebuilding the latest counter value.
+          future: scope.watchDependy<CounterService>(),
+          builder: (context, snapshot) {
+            final counterService = snapshot.data;
 
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '${counterService.counter}',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
+            return Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                const Text(
+                  'You have pushed the button this many times:',
+                ),
+                Text(
+                  '${counterService?.counter}',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+              ],
+            );
+          },
         );
       },
     );
   }
 }
-
 ````
 
 ### Share scope using ScopedDependyModuleMixin
@@ -399,7 +411,7 @@ class CounterView extends StatelessWidget {
 // From the `example-3` we learned about sharing scope using [ScopedDependyProvider]
 //
 // On this example, we are about to use [ScopedDependyModuleMixin]
-
+//
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key});
 
@@ -417,7 +429,7 @@ class _MyHomePageState extends State<MyHomePage> with ScopedDependyModuleMixin {
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-          title: const Text("Example 4 (Share Scope ScopedDependyModuleMixin)"),
+          title: const Text('Example 4 (Share Scope ScopedDependyModuleMixin)'),
         ),
         body: const Center(
           /// Notice that we are not passing any state directly to [CounterView].
@@ -469,9 +481,10 @@ class CounterButton extends StatelessWidget {
     return ScopedDependyConsumer(
       builder: (context, scope) {
         return FloatingActionButton(
-          onPressed: () {
+          onPressed: () async {
             /// When the button is pressed, we call [increment()] to update the counter.
-            scope.dependy<CounterService>().increment();
+            final counterService = await scope.dependy<CounterService>();
+            counterService.increment();
           },
           tooltip: 'Increment',
           child: const Icon(Icons.add),
@@ -489,27 +502,30 @@ class CounterView extends StatelessWidget {
   Widget build(BuildContext context) {
     return ScopedDependyConsumer(
       builder: (context, scope) {
-        /// Here we are watching [CounterService] and rebuilding the latest counter value.
-        final counterService = scope.watchDependy<CounterService>();
+        return FutureBuilder(
+          /// Here we are watching [CounterService] and rebuilding the latest counter value.
+          future: scope.watchDependy<CounterService>(),
+          builder: (context, snapshot) {
+            final counterService = snapshot.data;
 
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '${counterService.counter}',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
+            return Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                const Text(
+                  'You have pushed the button this many times:',
+                ),
+                Text(
+                  '${counterService?.counter}',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+              ],
+            );
+          },
         );
       },
     );
   }
 }
-
-
 ```
 
 ### Share multiple scopes using ScopedDependyModuleMixin
@@ -529,6 +545,17 @@ class CounterView extends StatelessWidget {
 //        CounterView
 //            -- Access LoggerService
 //            -- Access CounterService
+
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatefulWidget {
+  const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
 
 class _MyAppState extends State<MyApp> with ScopedDependyModuleMixin {
   @override
@@ -578,7 +605,8 @@ class _MyHomePageState extends State<MyHomePage> with ScopedDependyModuleMixin {
         appBar: AppBar(
           backgroundColor: Theme.of(context).colorScheme.inversePrimary,
           title: const Text(
-                  'Example 5 (Share Multiple Scopes using ScopedDependyModuleMixin)'),
+            'Example 5 (Share Multiple Scopes using ScopedDependyModuleMixin)',
+          ),
         ),
         body: const Center(
           child: CounterView(),
@@ -594,8 +622,8 @@ class _MyHomePageState extends State<MyHomePage> with ScopedDependyModuleMixin {
       providers: {
         // Provide the [CounterService] on the widget scope
         DependyProvider<CounterService>(
-                  (dependy) {
-            final loggerService = dependy<LoggerService>();
+                  (dependy) async {
+            final loggerService = await dependy<LoggerService>();
 
             // increment step of 5
             return CounterServiceImpl(5, loggerService);
@@ -623,12 +651,14 @@ class CounterButton extends StatelessWidget {
     return ScopedDependyConsumer(
       builder: (context, scope) {
         return FloatingActionButton(
-          onPressed: () {
+          onPressed: () async {
             // [LoggerService] lives two scopes on this example higher.
-            scope.dependy<LoggerService>().log("CounterButton onPressed");
+            final loggerService = await scope.dependy<LoggerService>();
+            loggerService.log('CounterButton onPressed');
 
             /// When the button is pressed, we call [increment()] to update the counter.
-            scope.dependy<CounterService>().increment();
+            final counterService = await scope.dependy<CounterService>();
+            counterService.increment();
           },
           tooltip: 'Increment',
           child: const Icon(Icons.add),
@@ -646,23 +676,30 @@ class CounterView extends StatelessWidget {
   Widget build(BuildContext context) {
     return ScopedDependyConsumer(
       builder: (context, scope) {
-        /// Here we are watching [CounterService] and rebuilding the latest counter value.
-        final counterService = scope.watchDependy<CounterService>();
+        return FutureBuilder(
+          /// Here we are watching [CounterService] and rebuilding the latest counter value.
+          future: scope.watchDependy<CounterService>(),
+          builder: (context, snapshot) {
+            final counterService = snapshot.data;
 
-        // [LoggerService] lives two scopes on this example higher.
-        scope.dependy<LoggerService>().log("CounterView build");
+            // [LoggerService] lives two scopes on this example higher.
+            scope.dependy<LoggerService>().then(
+                      (value) => value.log("CounterView build"),
+            );
 
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '${counterService.counter}',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
+            return Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                const Text(
+                  'You have pushed the button this many times:',
+                ),
+                Text(
+                  '${counterService?.counter}',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -680,6 +717,7 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return ScopedDependyProvider(
+      shareScope: true,
       builder: (context, scope) {
         return MaterialApp(
           title:
@@ -717,6 +755,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return ScopedDependyProvider(
+      shareScope: true,
       builder: (context, scope) {
         return Scaffold(
           appBar: AppBar(
@@ -736,8 +775,8 @@ class _MyHomePageState extends State<MyHomePage> {
           providers: {
             // Provide the [CounterService] on the widget scope
             DependyProvider<CounterService>(
-                      (dependy) {
-                final loggerService = dependy<LoggerService>();
+                      (dependy) async {
+                final loggerService = await dependy<LoggerService>();
 
                 // increment step of 5
                 return CounterServiceImpl(5, loggerService);
@@ -766,12 +805,14 @@ class CounterButton extends StatelessWidget {
     return ScopedDependyConsumer(
       builder: (context, scope) {
         return FloatingActionButton(
-          onPressed: () {
+          onPressed: () async {
             // [LoggerService] lives two scopes on this example higher.
-            scope.dependy<LoggerService>().log("CounterButton onPressed");
+            final loggerService = await scope.dependy<LoggerService>();
+            loggerService.log('CounterButton onPressed');
 
             /// When the button is pressed, we call [increment()] to update the counter.
-            scope.dependy<CounterService>().increment();
+            final counterService = await scope.dependy<CounterService>();
+            counterService.increment();
           },
           tooltip: 'Increment',
           child: const Icon(Icons.add),
@@ -789,27 +830,33 @@ class CounterView extends StatelessWidget {
   Widget build(BuildContext context) {
     return ScopedDependyConsumer(
       builder: (context, scope) {
-        /// Here we are watching [CounterService] and rebuilding the latest counter value.
-        final counterService = scope.watchDependy<CounterService>();
+        return FutureBuilder(
+          /// Here we are watching [CounterService] and rebuilding the latest counter value.
+          future: scope.watchDependy<CounterService>(),
+          builder: (context, snapshot) {
+            final counterService = snapshot.data;
 
-        // [LoggerService] lives two scopes on this example higher.
-        scope.dependy<LoggerService>().log("CounterView build");
+            // [LoggerService] lives two scopes on this example higher.
+            scope.dependy<LoggerService>().then(
+                      (value) => value.log("CounterView build"),
+            );
 
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '${counterService.counter}',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
+            return Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                const Text(
+                  'You have pushed the button this many times:',
+                ),
+                Text(
+                  '${counterService?.counter}',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+              ],
+            );
+          },
         );
       },
     );
   }
 }
-
 ```

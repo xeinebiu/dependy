@@ -48,38 +48,43 @@ class MyHomePage extends StatelessWidget {
     ///
     return ScopedDependyProvider(
       builder: (context, scope) {
-        /// Here are are retrieving an instance of [Example2State] but also
-        /// watching it for changes.
-        ///
-        /// Any change emitted by it will trigger a rebuild.
-        final state = scope.watchDependy<Example2State>();
+        return FutureBuilder(
+          /// Here are are retrieving an instance of [Example2State] but also
+          /// watching it for changes.
+          ///
+          /// Any change emitted by it will trigger a rebuild.
+          future: scope.watchDependy<Example2State>(),
+          builder: (context, snapshot) {
+            final state = snapshot.data;
 
-        return Scaffold(
-          appBar: AppBar(
-            backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-            title: const Text('Example 2 (ScopedDependyProvider)'),
-          ),
-          body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                const Text(
-                  'You have pushed the button this many times:',
+            return Scaffold(
+              appBar: AppBar(
+                backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+                title: const Text('Example 2 (ScopedDependyProvider)'),
+              ),
+              body: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    const Text(
+                      'You have pushed the button this many times:',
+                    ),
+                    Text(
+                      '${state?.counter}',
+                      style: Theme.of(context).textTheme.headlineMedium,
+                    ),
+                  ],
                 ),
-                Text(
-                  '${state.counter}',
-                  style: Theme.of(context).textTheme.headlineMedium,
-                ),
-              ],
-            ),
-          ),
-          floatingActionButton: FloatingActionButton(
-            onPressed: () {
-              state.incrementCounter();
-            },
-            tooltip: 'Increment',
-            child: const Icon(Icons.add),
-          ),
+              ),
+              floatingActionButton: FloatingActionButton(
+                onPressed: () {
+                  state?.incrementCounter();
+                },
+                tooltip: 'Increment',
+                child: const Icon(Icons.add),
+              ),
+            );
+          },
         );
       },
 
@@ -102,9 +107,9 @@ class MyHomePage extends StatelessWidget {
         return DependyModule(
           providers: {
             DependyProvider<Example2State>(
-              (dependy) {
+              (dependy) async {
                 // Here we resolve the logger service from [example2ServicesModule].
-                final logger = dependy<LoggerService>();
+                final logger = await dependy<LoggerService>();
 
                 // We finally return the instance to be used in [_MyHomePageState].
                 return Example2State(logger);

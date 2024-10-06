@@ -106,21 +106,26 @@ final singletonModule = DependyModule(
       key: 'singleton_logger_service',
     ),
     DependyProvider<DatabaseService>(
-      (dependy) {
-        final logger = dependy<LoggerService>();
+      (dependy) async {
+        final logger = await dependy<LoggerService>();
         return SqlDatabaseService(logger);
       },
       key: 'singleton_database_service',
-      dependsOn: {LoggerService},
+      dependsOn: {
+        LoggerService,
+      },
     ),
     DependyProvider<ApiService>(
-      (dependy) {
-        final databaseService = dependy<DatabaseService>();
-        final logger = dependy<LoggerService>();
+      (dependy) async {
+        final databaseService = await dependy<DatabaseService>();
+        final logger = await dependy<LoggerService>();
         return ApiServiceImpl(databaseService, logger);
       },
       key: 'singleton_api_service',
-      dependsOn: {DatabaseService, LoggerService},
+      dependsOn: {
+        DatabaseService,
+        LoggerService,
+      },
     ),
   },
 );
@@ -132,12 +137,14 @@ final scopedModule = DependyModule(
     // Here we declare a different implementation of DatabaseService [SqliteDatabaseService]
     // for scoped usage. Scoped services are designed to be used in a temporary context.
     DependyProvider<DatabaseService>(
-      (dependy) {
-        final logger = dependy<LoggerService>();
+      (dependy) async {
+        final logger = await dependy<LoggerService>();
         return SqliteDatabaseService(logger);
       },
       key: 'scoped_database_service',
-      dependsOn: {LoggerService},
+      dependsOn: {
+        LoggerService,
+      },
       dispose: (database) {
         // Close the database connections when the [DependyProvider] is disposed.
         database?.close();
@@ -145,16 +152,19 @@ final scopedModule = DependyModule(
     ),
     // A different implementation of ApiService (MockApiService) is provided.
     DependyProvider<ApiService>(
-      (dependy) {
+      (dependy) async {
         // will resolve to [SqliteDatabaseService]
-        final database = dependy<DatabaseService>();
+        final database = await dependy<DatabaseService>();
 
         // will resolve from [singletonModule]
-        final logger = dependy<LoggerService>();
+        final logger = await dependy<LoggerService>();
 
         return MockApiService(database, logger);
       },
-      dependsOn: {DatabaseService, LoggerService},
+      dependsOn: {
+        DatabaseService,
+        LoggerService,
+      },
       dispose: (api) {
         // Dispose the api service when the [DependyProvider] is disposed.
         api?.dispose();
@@ -169,7 +179,7 @@ final scopedModule = DependyModule(
 
 void main() async {
   print('=== Scoped Module Usage ===');
-  final scopedApiService = scopedModule<ApiService>();
+  final scopedApiService = await scopedModule<ApiService>();
   scopedApiService.fetchData();
   scopedModule.dispose(); // Disposes all services in the [scopedModule]
 
@@ -181,7 +191,7 @@ void main() async {
 
   // Demonstrating the singleton behavior (persistent services)
   print('\n=== Singleton Module Usage After Scoped Module Disposed ===');
-  final singletonApiService = singletonModule<ApiService>();
+  final singletonApiService = await singletonModule<ApiService>();
   singletonApiService.fetchData();
 
   // Result:

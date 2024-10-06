@@ -21,17 +21,16 @@
 
 ## About
 
-**Dependy** is a lightweight and flexible dependency injection (DI) library for Dart. It simplifies the management of
-services and their dependencies, making your code more modular, maintainable, and testable. Dependy also supports
-hierarchical modules, dependency tracking, and circular dependency detection.
+**Dependy** is a lightweight and flexible dependency injection (DI) library for Dart. It simplifies managing services and their dependencies, making our code more modular, maintainable, and testable.
+Dependy supports hierarchical modules, dependency tracking, and circular dependency detection.
+It also supports asynchronous initialization, allowing services to be loaded efficiently when needed.
 
 ### Key Features:
 
 - **Provider-based DI**: Define how each service (provider) is created and manage dependencies between them.
 - **Support for modules**: Structure your providers into modules to improve separation of concerns.
 - **Circular dependency detection**: Avoid infinite loops by tracking dependencies.
-
----
+- **Async initialization**: Initialize services asynchronously.
 
 ## Installation
 
@@ -39,7 +38,7 @@ Add `dependy` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  dependy: ^1.0.0
+  dependy: ^1.1.0
 ```
 
 Then, run:
@@ -181,8 +180,6 @@ A **scope** defines the lifetime of a service or object. Scopes determine how lo
 
 #### Example
 ````dart
-import 'package:dependy/dependy.dart';
-
 // region Logger
 abstract class LoggerService {
   void log(String message);
@@ -191,7 +188,7 @@ abstract class LoggerService {
 class ConsoleLoggerService extends LoggerService {
   @override
   void log(String message) {
-    print("[Logger]: $message");
+    print('[Logger]: $message');
   }
 }
 // endregion
@@ -210,12 +207,12 @@ class SqlDatabaseService extends DatabaseService {
 
   @override
   void connect() {
-    _logger.log("Connected to Sql Database");
+    _logger.log('Connected to Sql Database');
   }
 
   @override
   void close() {
-    _logger.log("Closed Sql Database");
+    _logger.log('Closed Sql Database');
   }
 }
 
@@ -226,12 +223,12 @@ class SqliteDatabaseService extends DatabaseService {
 
   @override
   void connect() {
-    _logger.log("Connected to Sqlite Database");
+    _logger.log('Connected to Sqlite Database');
   }
 
   @override
   void close() {
-    _logger.log("Closed Sqlite Database");
+    _logger.log('Closed Sqlite Database');
   }
 }
 // endregion
@@ -251,13 +248,13 @@ class ApiServiceImpl extends ApiService {
 
   @override
   void fetchData() {
-    _logger.log("Fetching data from API...");
+    _logger.log('Fetching data from API...');
     _db.connect();
   }
 
   @override
   void dispose() {
-    _logger.log("Disposing $this");
+    _logger.log('Disposing $this');
   }
 }
 
@@ -269,58 +266,65 @@ class MockApiService extends ApiService {
 
   @override
   void fetchData() {
-    _logger.log("Mocking API data...");
+    _logger.log('Mocking API data...');
     _db.connect();
   }
 
   @override
   void dispose() {
-    _logger.log("Disposing $this");
+    _logger.log('Disposing $this');
   }
 }
 // endregion
 
 // Singleton module: provides services that live across the application
 final singletonModule = DependyModule(
-  key: "singleton_module",
+  key: 'singleton_module',
   providers: {
     DependyProvider<LoggerService>(
-          (_) => ConsoleLoggerService(),
-      key: "singleton_logger_service",
+          (resolve) => ConsoleLoggerService(),
+      key: 'singleton_logger_service',
     ),
     DependyProvider<DatabaseService>(
-          (dependy) {
-        final logger = dependy<LoggerService>();
+          (dependy) async {
+        final logger = await dependy<LoggerService>();
         return SqlDatabaseService(logger);
       },
-      key: "singleton_database_service",
-      dependsOn: {LoggerService},
+      key: 'singleton_database_service',
+      dependsOn: {
+        LoggerService,
+      },
     ),
     DependyProvider<ApiService>(
-          (dependy) {
-        final databaseService = dependy<DatabaseService>();
-        final logger = dependy<LoggerService>();
+          (dependy) async {
+        final databaseService = await dependy<DatabaseService>();
+        final logger = await dependy<LoggerService>();
         return ApiServiceImpl(databaseService, logger);
       },
-      key: "singleton_api_service",
-      dependsOn: {DatabaseService, LoggerService},
+      key: 'singleton_api_service',
+      dependsOn: {
+        DatabaseService,
+        LoggerService,
+      },
     ),
   },
 );
 
 // Scoped module: provides services that live temporarily and are disposed when done
 final scopedModule = DependyModule(
-  key: "scoped_module",
+  key: 'scoped_module',
   providers: {
     // Here we declare a different implementation of DatabaseService [SqliteDatabaseService]
     // for scoped usage. Scoped services are designed to be used in a temporary context.
     DependyProvider<DatabaseService>(
-          (dependy) {
-        final logger = dependy<LoggerService>();
+          (dependy) async {
+        final logger = await dependy<LoggerService>();
         return SqliteDatabaseService(logger);
       },
-      key: "scoped_database_service",
-      dependsOn: {LoggerService},
+      key: 'scoped_database_service',
+      dependsOn: {
+        LoggerService,
+      },
       dispose: (database) {
         // Close the database connections when the [DependyProvider] is disposed.
         database?.close();
@@ -328,16 +332,19 @@ final scopedModule = DependyModule(
     ),
     // A different implementation of ApiService (MockApiService) is provided.
     DependyProvider<ApiService>(
-          (dependy) {
+          (dependy) async {
         // will resolve to [SqliteDatabaseService]
-        final database = dependy<DatabaseService>();
+        final database = await dependy<DatabaseService>();
 
         // will resolve from [singletonModule]
-        final logger = dependy<LoggerService>();
+        final logger = await dependy<LoggerService>();
 
         return MockApiService(database, logger);
       },
-      dependsOn: {DatabaseService, LoggerService},
+      dependsOn: {
+        DatabaseService,
+        LoggerService,
+      },
       dispose: (api) {
         // Dispose the api service when the [DependyProvider] is disposed.
         api?.dispose();
@@ -350,9 +357,9 @@ final scopedModule = DependyModule(
   },
 );
 
-void main() {
-  print("=== Scoped Module Usage ===");
-  final scopedApiService = scopedModule<ApiService>();
+void main() async {
+  print('=== Scoped Module Usage ===');
+  final scopedApiService = await scopedModule<ApiService>();
   scopedApiService.fetchData();
   scopedModule.dispose(); // Disposes all services in the [scopedModule]
 
@@ -363,15 +370,14 @@ void main() {
   // [Logger]: Disposing Instance of 'MockApiService'
 
   // Demonstrating the singleton behavior (persistent services)
-  print("\n=== Singleton Module Usage After Scoped Module Disposed ===");
-  final singletonApiService = singletonModule<ApiService>();
+  print('\n=== Singleton Module Usage After Scoped Module Disposed ===');
+  final singletonApiService = await singletonModule<ApiService>();
   singletonApiService.fetchData();
 
   // Result:
   // [Logger]: Fetching data from API...
   // [Logger]: Connected to Sql Database
 }
-
 ````
 
 ---
@@ -442,15 +448,13 @@ In this example, we use a single service called `CounterService`, which provides
 each call.
 
 ```dart
-import 'package:dependy/dependy.dart';
-
 class CounterService {
   int _count = 0;
 
   int increment() => ++_count;
 }
 
-final module = DependyModule(
+final dependy = DependyModule(
   providers: {
     DependyProvider<CounterService>(
           (_) => CounterService(),
@@ -458,13 +462,12 @@ final module = DependyModule(
   },
 );
 
-void main() {
-  final counterService = module<CounterService>();
+void main() async {
+  final counterService = await dependy<CounterService>();
 
   print('Initial Count: ${counterService.increment()}');
   print('After Increment: ${counterService.increment()}');
 }
-
 ```
 
 ### Two Independent Services
@@ -473,8 +476,6 @@ In this example, we have two independent services: `LoggerService` for logging a
 mathematical operation.
 
 ```dart
-import 'package:dependy/dependy.dart';
-
 class LoggerService {
   void log(String message) {
     print('Log: $message');
@@ -485,24 +486,23 @@ class MathService {
   int square(int number) => number * number;
 }
 
-final module = DependyModule(
+final dependy = DependyModule(
   providers: {
     DependyProvider<LoggerService>(
           (_) => LoggerService(),
     ),
     DependyProvider<MathService>(
           (_) => MathService(),
-    )
+    ),
   },
 );
 
-void main() {
-  final loggerService = module<LoggerService>();
-  final mathService = module<MathService>();
+void main() async {
+  final loggerService = await dependy<LoggerService>();
+  final mathService = await dependy<MathService>();
 
   loggerService.log('Calculating square of 4: ${mathService.square(4)}');
 }
-
 ```
 
 ### Services with Dependencies
@@ -511,11 +511,8 @@ Here, the `CalculatorService` depends on `LoggerService`, and `LoggerService` de
 dependency is resolved in the correct order.
 
 ```dart
-
-import 'package:dependy/dependy.dart';
-
 class ConfigService {
-  final String appName = "DependyExample";
+  final String appName = 'DependyExample';
 }
 
 class LoggerService {
@@ -539,19 +536,25 @@ class CalculatorService {
   }
 }
 
-final module = DependyModule(
+final dependy = DependyModule(
   providers: {
     DependyProvider<ConfigService>(
-      (_) => ConfigService(),
+          (_) => ConfigService(),
     ),
     DependyProvider<LoggerService>(
-      (dependy) => LoggerService(dependy<ConfigService>()),
+          (dependy) async {
+        final configService = await dependy<ConfigService>();
+        return LoggerService(configService);
+      },
       dependsOn: {
         ConfigService,
       },
     ),
     DependyProvider<CalculatorService>(
-      (dependy) => CalculatorService(dependy<LoggerService>()),
+          (dependy) async {
+        final loggerService = await dependy<LoggerService>();
+        return CalculatorService(loggerService);
+      },
       dependsOn: {
         LoggerService,
       },
@@ -559,12 +562,11 @@ final module = DependyModule(
   },
 );
 
-void main() {
-  final calculatorService = module<CalculatorService>();
+void main() async {
+  final calculatorService = await dependy<CalculatorService>();
 
   print('Result: ${calculatorService.multiply(3, 5)}');
 }
-
 ```
 
 ### Multiple Modules with Dependencies
@@ -573,10 +575,8 @@ In this example, we organize services into two modules: one for database and API
 authentication and payment services. Each module manages its own set of dependencies.
 
 ```dart
-import 'package:dependy/dependy.dart';
-
 class DatabaseService {
-  void connect() => print("Connected to Database");
+  void connect() => print('Connected to Database');
 }
 
 class ApiService {
@@ -585,13 +585,13 @@ class ApiService {
   ApiService(this._db);
 
   void fetchData() {
-    print("Fetching data from API...");
+    print('Fetching data from API...');
     _db.connect();
   }
 }
 
 class AuthService {
-  void authenticate() => print("User authenticated");
+  void authenticate() => print('User authenticated');
 }
 
 class PaymentService {
@@ -601,18 +601,23 @@ class PaymentService {
 
   void processPayment() {
     _auth.authenticate();
-    print("Payment processed");
+    print('Payment processed');
   }
 }
 
 final module1 = DependyModule(
   providers: {
     DependyProvider<DatabaseService>(
-      (_) => DatabaseService(),
+          (_) => DatabaseService(),
     ),
     DependyProvider<ApiService>(
-      (dependy) => ApiService(dependy<DatabaseService>()),
-      dependsOn: {DatabaseService},
+          (dependy) async {
+        final databaseService = await dependy<DatabaseService>();
+        return ApiService(databaseService);
+      },
+      dependsOn: {
+        DatabaseService,
+      },
     ),
   },
 );
@@ -620,28 +625,52 @@ final module1 = DependyModule(
 final module2 = DependyModule(
   providers: {
     DependyProvider<AuthService>(
-      (_) => AuthService(),
+          (_) => AuthService(),
     ),
     DependyProvider<PaymentService>(
-      (dependy) => PaymentService(dependy<AuthService>()),
-      dependsOn: {AuthService},
+          (dependy) async {
+        final authService = await dependy<AuthService>();
+        return PaymentService(authService);
+      },
+      dependsOn: {
+        AuthService,
+      },
+    ),
+  },
+);
+
+final module3 = DependyModule(
+  providers: {
+    DependyProvider<AuthService>(
+          (_) => AuthService(),
+    ),
+    DependyProvider<PaymentService>(
+          (dependy) async {
+        final authService = await dependy<AuthService>();
+        return PaymentService(authService);
+      },
+      dependsOn: {
+        AuthService,
+      },
     ),
   },
 );
 
 final mainModule = DependyModule(
   providers: {},
-  modules: {module1, module2},
+  modules: {
+    module1,
+    module2,
+  },
 );
 
-void main() {
-  final apiService = mainModule<ApiService>();
-  final paymentService = mainModule<PaymentService>();
+void main() async {
+  final apiService = await mainModule<ApiService>();
+  final paymentService = await mainModule<PaymentService>();
 
   apiService.fetchData();
   paymentService.processPayment();
 }
-
 ```
 
 ---

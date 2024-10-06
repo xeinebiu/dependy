@@ -10,7 +10,7 @@ class MathService {
   int square(int number) => number * number;
 }
 
-final module = DependyModule(
+final dependy = DependyModule(
   providers: {
     DependyProvider<LoggerService>(
       (_) => LoggerService(),
@@ -22,8 +22,8 @@ final module = DependyModule(
 );
 
 void main() async {
-  final loggerService = module<LoggerService>();
-  final mathService = module<MathService>();
+  final loggerService = await dependy<LoggerService>();
+  final mathService = await dependy<MathService>();
 
   loggerService.log('Calculating square of 4: ${mathService.square(4)}');
 }
