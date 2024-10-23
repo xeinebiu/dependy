@@ -15,6 +15,11 @@
 6. [Scopes](#scopes)
 7. [Exceptions](#exceptions)
 8. [Examples](#examples)
+   - [Simple Counter Service](#simple-counter-service)
+   - [Two Independent Services](#two-independent-services)
+   - [Services with Dependencies](#services-with-dependencies)
+   - [Multiple Modules with Dependencies](#multiple-modules-with-dependencies)
+   - [Eager initialization](#eager-initialization)
 9. [MIT License](#mit-license)
 
 ---
@@ -23,7 +28,7 @@
 
 **Dependy** is a lightweight and flexible dependency injection (DI) library for Dart. It simplifies managing services and their dependencies, making our code more modular, maintainable, and testable.
 Dependy supports hierarchical modules, dependency tracking, and circular dependency detection.
-It also supports asynchronous initialization, allowing services to be loaded efficiently when needed.
+It also supports eager or lazy/asynchronous initialization, allowing services to be loaded efficiently when needed.
 
 ### Key Features:
 
@@ -31,6 +36,7 @@ It also supports asynchronous initialization, allowing services to be loaded eff
 - **Support for modules**: Structure your providers into modules to improve separation of concerns.
 - **Circular dependency detection**: Avoid infinite loops by tracking dependencies.
 - **Async initialization**: Initialize services asynchronously.
+- **Eager initialization**: Initialize and prepare all services eagerly.
 
 ## Installation
 
@@ -38,7 +44,7 @@ Add `dependy` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  dependy: ^1.1.0
+  dependy: ^1.2.0
 ```
 
 Then, run:
@@ -97,7 +103,7 @@ Example of a simple module:
 final loggingService = DependyModule(
   providers: {
     DependyProvider<LoggerService>(
-          (_) => LoggerService(),
+        (_) => LoggerService(),
     ),
   },
 );
@@ -134,7 +140,7 @@ Here’s how to use the `dispose` method in a module:
 final loggingModule = DependyModule(
   providers: {
     DependyProvider<LoggerService>(
-          (_) => LoggerService(),
+        (_) => LoggerService(),
     ),
   },
 );
@@ -511,6 +517,8 @@ Here, the `CalculatorService` depends on `LoggerService`, and `LoggerService` de
 dependency is resolved in the correct order.
 
 ```dart
+import 'package:dependy/dependy.dart';
+
 class ConfigService {
   final String appName = 'DependyExample';
 }
@@ -672,6 +680,82 @@ void main() async {
   paymentService.processPayment();
 }
 ```
+
+### Eager initialization
+```dart
+
+class ConfigService {
+  ConfigService(this.apiUrl);
+
+  final String apiUrl;
+}
+
+class LoggerService {
+  void log(String message) {
+    print("LOG: $message");
+  }
+}
+
+class DatabaseService {
+  DatabaseService(this.config, this.logger);
+
+  final ConfigService config;
+  final LoggerService logger;
+
+  void connect() {
+    logger.log("Connecting to database at ${config.apiUrl}");
+  }
+}
+
+class ApiService {
+  ApiService(this.config, this.logger);
+
+  final ConfigService config;
+  final LoggerService logger;
+
+  void fetchData() {
+    logger.log("Fetching data from API at ${config.apiUrl}");
+  }
+}
+
+void main() async {
+  final eagerModule = await DependyModule(
+    providers: {
+      DependyProvider<ConfigService>(
+        (resolve) async => ConfigService("https://api.example.com"),
+      ),
+      DependyProvider<LoggerService>(
+        (resolve) async => LoggerService(),
+      ),
+      DependyProvider<DatabaseService>(
+        (resolve) async => DatabaseService(
+          await resolve<ConfigService>(),
+          await resolve<LoggerService>(),
+        ),
+        dependsOn: {ConfigService, LoggerService},
+      ),
+      DependyProvider<ApiService>(
+        (resolve) async => ApiService(
+          await resolve<ConfigService>(),
+          await resolve<LoggerService>(),
+        ),
+        dependsOn: {ConfigService, LoggerService},
+      ),
+    },
+  ).asEager(); // Convert to an EagerDependyModule using asEager extension
+
+  // Now, retrieve the services synchronously
+  final dbService = eagerModule<DatabaseService>();
+  dbService.connect();
+
+  final apiService = eagerModule<ApiService>();
+  apiService.fetchData();
+}
+
+
+```
+
+
 
 ---
 

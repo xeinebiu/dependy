@@ -1,6 +1,6 @@
 name: dependy
-description: "Dependy is a lightweight and flexible dependency injection (DI) library for Dart. It simplifies the management of services and their dependencies, making your code more modular, maintainable, and testable."
-version: 1.1.0
+description: "Dependy is a lightweight and flexible dependency injection (DI) library for Dart. It simplifies the management of services and their dependencies."
+version: 1.2.0
 homepage: https://github.com/xeinebiu/dependy
 
 environment:

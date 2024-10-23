@@ -103,6 +103,7 @@ class DependyModule {
   final String? _key;
 
   bool _disposed = false;
+  bool get disposed => _disposed;
 
   /// Disposes all providers in this module.
   ///
@@ -292,5 +293,81 @@ class DependyModule {
         }
       }
     }
+  }
+}
+
+class EagerDependyModule {
+  EagerDependyModule._(this._module);
+
+  final Map<Type, Object> _resolvedProviders = {};
+  final DependyModule _module;
+
+  bool get disposed => _module.disposed;
+
+  bool _initialized = false;
+  bool get initialized => _initialized;
+
+  /// Initializes all providers asynchronously. This should be called before any `call<T>()` is made.
+  Future<void> _init() async {
+    final visited = <DependyModule>{};
+    await _resolveAllProviders(_module, visited);
+
+    _initialized = true;
+  }
+
+  Future<void> _resolveAllProviders(
+    DependyModule module,
+    Set<DependyModule> visited,
+  ) async {
+    for (final provider in module._providers) {
+      if (!_resolvedProviders.containsKey(provider._type)) {
+        _resolvedProviders[provider._type] = await provider._create(
+          module.call,
+        );
+      }
+    }
+
+    visited.add(module);
+
+    for (final submodule in module._modules) {
+      if (!visited.contains(submodule)) {
+        await _resolveAllProviders(submodule, visited);
+      }
+    }
+  }
+
+  T call<T extends Object>() {
+    if (disposed) {
+      throw DependyModuleDisposedException((this, _module._key));
+    }
+
+    if (!initialized) {}
+
+    final provider = _resolvedProviders[T];
+    if (provider == null) {
+      throw DependyProviderNotFoundException((T, _module._key));
+    }
+    return provider as T;
+  }
+
+  /// Disposes all providers in this module.
+  ///
+  /// If [disposeSubmodules] is true, disposes submodules as well.
+  void dispose({bool disposeSubmodules = false}) {
+    if (disposed) {
+      return;
+    }
+
+    _resolvedProviders.clear();
+
+    _module.dispose(disposeSubmodules: disposeSubmodules);
+  }
+}
+
+extension DependyModuleExt on DependyModule {
+  Future<EagerDependyModule> asEager() async {
+    final eagerModule = EagerDependyModule._(this);
+    await eagerModule._init();
+    return eagerModule;
   }
 }
