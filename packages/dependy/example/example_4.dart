@@ -30,13 +30,18 @@ class PaymentService {
   }
 }
 
-final module1 = DependyModule(
+final databaseModule = DependyModule(
   providers: {
     DependyProvider<DatabaseService>(
       (_) => DatabaseService(),
     ),
+  },
+);
+
+final mainModule = DependyModule(
+  providers: {
     DependyProvider<ApiService>(
-      (dependy) async {
+          (dependy) async {
         final databaseService = await dependy<DatabaseService>();
         return ApiService(databaseService);
       },
@@ -44,11 +49,6 @@ final module1 = DependyModule(
         DatabaseService,
       },
     ),
-  },
-);
-
-final module2 = DependyModule(
-  providers: {
     DependyProvider<AuthService>(
       (_) => AuthService(),
     ),
@@ -62,31 +62,9 @@ final module2 = DependyModule(
       },
     ),
   },
-);
-
-final module3 = DependyModule(
-  providers: {
-    DependyProvider<AuthService>(
-      (_) => AuthService(),
-    ),
-    DependyProvider<PaymentService>(
-      (dependy) async {
-        final authService = await dependy<AuthService>();
-        return PaymentService(authService);
-      },
-      dependsOn: {
-        AuthService,
-      },
-    ),
-  },
-);
-
-final mainModule = DependyModule(
-  providers: {},
   modules: {
-    module1,
-    module2,
-  },
+    databaseModule,
+  }
 );
 
 void main() async {

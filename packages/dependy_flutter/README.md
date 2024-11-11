@@ -7,11 +7,11 @@
 - [Why Scoping is Important](#why-scoping-is-important)
   - [When to Use Scoping](#when-to-use-scoping)
 - [Usage](#usage)
-  - [ScopedDependyModuleMixin](#scopeddependymodulemixin)
+  - [ScopedDependyMixin](#ScopedDependyMixin)
   - [ScopedDependyProvider](#scopeddependyprovider)
   - [Share scope using ScopedDependyProvider](#share-scope-using-scopeddependyprovider)
-  - [Share scope using ScopedDependyModuleMixin](#share-scope-using-scopeddependymodulemixin)
-  - [Share multiple scopes using ScopedDependyModuleMixin](#share-multiple-scopes-using-scopeddependymodulemixin)
+  - [Share scope using ScopedDependyMixin](#share-scope-using-ScopedDependyMixin)
+  - [Share multiple scopes using ScopedDependyMixin](#share-multiple-scopes-using-ScopedDependyMixin)
 
 ## About
 
@@ -68,25 +68,25 @@ import 'package:dependy_flutter/dependy_flutter.dart';
 
 ## Usage
 
-### ScopedDependyModuleMixin
+### ScopedDependyMixin
 
 ```dart
-// In this example, we will demonstrate how to use [ScopedDependyModuleMixin].
+// In this example, we will demonstrate how to use [ScopedDependyMixin].
 //
-// [ScopedDependyModuleMixin] can only be applied to a [StatefulWidget].
+// [ScopedDependyMixin] can only be applied to a [StatefulWidget].
 //
 // It provides scoping functionality to the applied [Widget].
 //
 
-/// We apply the [ScopedDependyModuleMixin] to provide scoping.
+/// We apply the [ScopedDependyMixin] to provide scoping.
 /// This scoping manages the lifespan of the [Example1State] service.
 ///
 /// [Example1State] will exist as long as [_MyHomePageState] does.
-class _MyHomePageState extends State<MyHomePage> with ScopedDependyModuleMixin {
+class _MyHomePageState extends State<MyHomePage> with ScopedDependyMixin {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder(
-      /// watchDependy is a function from [ScopedDependyModuleMixin].
+      /// watchDependy is a function from [ScopedDependyMixin].
       /// It accepts only a [ChangeNotifier] and triggers a rebuild each
       /// time a change is notified.
       future: watchDependy<Example1State>(),
@@ -96,7 +96,7 @@ class _MyHomePageState extends State<MyHomePage> with ScopedDependyModuleMixin {
         return Scaffold(
           appBar: AppBar(
             backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-            title: const Text('Example 1 (Using ScopedDependyModuleMixin)'),
+            title: const Text('Example 1 (Using ScopedDependyMixin)'),
           ),
           body: Center(
             child: Column(
@@ -117,7 +117,7 @@ class _MyHomePageState extends State<MyHomePage> with ScopedDependyModuleMixin {
               /// Here we can use the state.incrementCounter() directly.
               ///
               /// But for demonstration purposes, when we do not need to watch a service,
-              /// we can use the function `dependy` from [ScopedDependyModuleMixin]
+              /// we can use the function `dependy` from [ScopedDependyMixin]
               /// to read the service without watching it.
               final state = await dependy<Example1State>();
               state.incrementCounter();
@@ -141,7 +141,7 @@ class _MyHomePageState extends State<MyHomePage> with ScopedDependyModuleMixin {
   /// ```
   ///
   /// If you are not overriding or providing any extra modules or providers specifically for
-  /// this [Widget], you may not need to use the [ScopedDependyModuleMixin].
+  /// this [Widget], you may not need to use the [ScopedDependyMixin].
   @override
   DependyModule moduleBuilder() {
     /// The module scoped to the lifespan of [_MyHomePageState].
@@ -177,13 +177,13 @@ class _MyHomePageState extends State<MyHomePage> with ScopedDependyModuleMixin {
 ```dart
 // In this example, we will demonstrate how to use [ScopedDependyProvider] widget.
 
-/// No [ScopedDependyModuleMixin] is applied and [MyHomePage] is a [StatelessWidget]
+/// No [ScopedDependyMixin] is applied and [MyHomePage] is a [StatelessWidget]
 class MyHomePage extends StatelessWidget {
   const MyHomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    /// From previous example, we learned how we can use [ScopedDependyModuleMixin]
+    /// From previous example, we learned how we can use [ScopedDependyMixin]
     ///
     /// This is an alternative way how we can Scope [dependy] modules.
     ///
@@ -248,7 +248,7 @@ class MyHomePage extends StatelessWidget {
       /// ```
       ///
       /// If you are not overriding or providing any extra modules or providers specifically for
-      /// this [Widget], you may not need to use the [ScopedDependyModuleMixin].
+      /// this [Widget], you may not need to use the [ScopedDependyMixin].
       moduleBuilder: (_) {
         /// The module scoped to the lifespan of [_MyHomePageState].
         ///
@@ -282,13 +282,13 @@ class MyHomePage extends StatelessWidget {
 ### Share scope using ScopedDependyProvider
 
 ````dart
-// From the `example-1` and `example-2` we learned about [ScopedDependyModuleMixin]
+// From the `example-1` and `example-2` we learned about [ScopedDependyMixin]
 // and [ScopedDependyProvider]
 //
 // On a more complex application, sometimes it is important to share the scope with other
 // widgets to avoid props-drilling.
 //
-// Dependy does allow sharing scope using a [StatefulWidget] that applies [ScopedDependyModuleMixin] or
+// Dependy does allow sharing scope using a [StatefulWidget] that applies [ScopedDependyMixin] or
 // [ScopedDependyProvider]
 //
 // On this example, we will use [ScopedDependyProvider] for demonstration.
@@ -405,12 +405,12 @@ class CounterView extends StatelessWidget {
 }
 ````
 
-### Share scope using ScopedDependyModuleMixin
+### Share scope using ScopedDependyMixin
 
 ```dart
 // From the `example-3` we learned about sharing scope using [ScopedDependyProvider]
 //
-// On this example, we are about to use [ScopedDependyModuleMixin]
+// On this example, we are about to use [ScopedDependyMixin]
 //
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key});
@@ -419,17 +419,17 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> with ScopedDependyModuleMixin {
+class _MyHomePageState extends State<MyHomePage> with ScopedDependyMixin {
   @override
   Widget build(BuildContext context) {
     /// While on [ScopedDependyProvider] we could set shareScope: true, using
-    /// [ScopedDependyModuleMixin] we can invoke [shareDependyScope] which
+    /// [ScopedDependyMixin] we can invoke [shareDependyScope] which
     /// does achieve the exact same thing.
     return shareDependyScope(
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-          title: const Text('Example 4 (Share Scope ScopedDependyModuleMixin)'),
+          title: const Text('Example 4 (Share Scope ScopedDependyMixin)'),
         ),
         body: const Center(
           /// Notice that we are not passing any state directly to [CounterView].
@@ -528,12 +528,12 @@ class CounterView extends StatelessWidget {
 }
 ```
 
-### Share multiple scopes using ScopedDependyModuleMixin
+### Share multiple scopes using ScopedDependyMixin
 
 ````dart
 // From the previous example we learned about sharing scopes.
 //
-// On this example, we are about to demonstrate how multiple scoping works when shared using [ScopedDependyModuleMixin]
+// On this example, we are about to demonstrate how multiple scoping works when shared using [ScopedDependyMixin]
 //
 // App
 //    -- LoggerService
@@ -557,7 +557,7 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> with ScopedDependyModuleMixin {
+class _MyAppState extends State<MyApp> with ScopedDependyMixin {
   @override
   Widget build(BuildContext context) {
     /// Share dependy scope with the descendants
@@ -566,7 +566,7 @@ class _MyAppState extends State<MyApp> with ScopedDependyModuleMixin {
     return shareDependyScope(
       child: MaterialApp(
         title:
-        'Example 5 (Share Multiple Scopes using ScopedDependyModuleMixin)',
+        'Example 5 (Share Multiple Scopes using ScopedDependyMixin)',
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
           useMaterial3: true,
@@ -597,7 +597,7 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> with ScopedDependyModuleMixin {
+class _MyHomePageState extends State<MyHomePage> with ScopedDependyMixin {
   @override
   Widget build(BuildContext context) {
     return shareDependyScope(
@@ -605,7 +605,7 @@ class _MyHomePageState extends State<MyHomePage> with ScopedDependyModuleMixin {
         appBar: AppBar(
           backgroundColor: Theme.of(context).colorScheme.inversePrimary,
           title: const Text(
-            'Example 5 (Share Multiple Scopes using ScopedDependyModuleMixin)',
+            'Example 5 (Share Multiple Scopes using ScopedDependyMixin)',
           ),
         ),
         body: const Center(
@@ -634,7 +634,7 @@ class _MyHomePageState extends State<MyHomePage> with ScopedDependyModuleMixin {
         ),
       },
       modules: {
-        // This function comes from [ScopedDependyModuleMixin]
+        // This function comes from [ScopedDependyMixin]
         // Import it if its services are needed on this scope.
         parentModule(),
       },
@@ -708,7 +708,7 @@ class CounterView extends StatelessWidget {
 
 ````
 
-### Share multiple scopes using ScopedDependyModuleMixin
+### Share multiple scopes using ScopedDependyMixin
 
 ```dart
 // Same use-case as on `example-5` but using [ScopedDependyProvider]

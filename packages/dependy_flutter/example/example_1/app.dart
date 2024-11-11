@@ -1,6 +1,6 @@
-// In this example, we will demonstrate how to use [ScopedDependyModuleMixin].
+// In this example, we will demonstrate how to use [ScopedDependyMixin].
 //
-// [ScopedDependyModuleMixin] can only be applied to a [StatefulWidget].
+// [ScopedDependyMixin] can only be applied to a [StatefulWidget].
 //
 // It provides scoping functionality to the applied [Widget].
 //
@@ -24,7 +24,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Example 1 (Using ScopedDependyModuleMixin)',
+      title: 'Example 1 (Using ScopedDependyMixin)',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
@@ -43,15 +43,15 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-/// We apply the [ScopedDependyModuleMixin] to provide scoping.
+/// We apply the [ScopedDependyMixin] to provide scoping.
 /// This scoping manages the lifespan of the [Example1State] service.
 ///
 /// [Example1State] will exist as long as [_MyHomePageState] does.
-class _MyHomePageState extends State<MyHomePage> with ScopedDependyModuleMixin {
+class _MyHomePageState extends State<MyHomePage> with ScopedDependyMixin {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder(
-      /// watchDependy is a function from [ScopedDependyModuleMixin].
+      /// watchDependy is a function from [ScopedDependyMixin].
       /// It accepts only a [ChangeNotifier] and triggers a rebuild each
       /// time a change is notified.
       future: watchDependy<Example1State>(),
@@ -61,7 +61,7 @@ class _MyHomePageState extends State<MyHomePage> with ScopedDependyModuleMixin {
         return Scaffold(
           appBar: AppBar(
             backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-            title: const Text('Example 1 (Using ScopedDependyModuleMixin)'),
+            title: const Text('Example 1 (Using ScopedDependyMixin)'),
           ),
           body: Center(
             child: Column(
@@ -82,7 +82,7 @@ class _MyHomePageState extends State<MyHomePage> with ScopedDependyModuleMixin {
               /// Here we can use the state.incrementCounter() directly.
               ///
               /// But for demonstration purposes, when we do not need to watch a service,
-              /// we can use the function `dependy` from [ScopedDependyModuleMixin]
+              /// we can use the function `dependy` from [ScopedDependyMixin]
               /// to read the service without watching it.
               final state = await dependy<Example1State>();
               state.incrementCounter();
@@ -106,7 +106,7 @@ class _MyHomePageState extends State<MyHomePage> with ScopedDependyModuleMixin {
   /// ```
   ///
   /// If you are not overriding or providing any extra modules or providers specifically for
-  /// this [Widget], you may not need to use the [ScopedDependyModuleMixin].
+  /// this [Widget], you may not need to use the [ScopedDependyMixin].
   @override
   DependyModule moduleBuilder() {
     /// The module scoped to the lifespan of [_MyHomePageState].
