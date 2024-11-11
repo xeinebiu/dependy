@@ -71,7 +71,7 @@ const config: Config = {
       title: 'Dependy',
       logo: {
         alt: 'Dependy Logo',
-        src: 'img/logo.svg',
+        src: 'img/logo.png',
       },
       items: [
         {
