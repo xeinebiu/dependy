@@ -1,6 +1,6 @@
 // From the `example-3` we learned about sharing scope using [ScopedDependyProvider]
 //
-// On this example, we are about to use [ScopedDependyModuleMixin]
+// On this example, we are about to use [ScopedDependyMixin]
 //
 // Jump to [_MyHomePageState] to continue reading...
 
@@ -21,7 +21,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Example 4 (Share Scope ScopedDependyModuleMixin)',
+      title: 'Example 4 (Share Scope ScopedDependyMixin)',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
@@ -38,17 +38,17 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> with ScopedDependyModuleMixin {
+class _MyHomePageState extends State<MyHomePage> with ScopedDependyMixin {
   @override
   Widget build(BuildContext context) {
     /// While on [ScopedDependyProvider] we could set shareScope: true, using
-    /// [ScopedDependyModuleMixin] we can invoke [shareDependyScope] which
+    /// [ScopedDependyMixin] we can invoke [shareDependyScope] which
     /// does achieve the exact same thing.
     return shareDependyScope(
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-          title: const Text('Example 4 (Share Scope ScopedDependyModuleMixin)'),
+          title: const Text('Example 4 (Share Scope ScopedDependyMixin)'),
         ),
         body: const Center(
           /// Notice that we are not passing any state directly to [CounterView].
@@ -88,27 +88,15 @@ class CounterButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    /// We are using the [ScopedDependyConsumer] to isolate the rebuilds inside this widget.
-    ///
-    /// We can also do something similar to
-    /// ```dart
-    ///   final scope = getDependyScope(context);
-    ///   final counterService = scope.watchDependy<CounterService>();
-    /// ```
-    ///
-    /// But that will register the listener on the [ScopedDependyProvider] level, causing it to rebuild.
-    return ScopedDependyConsumer(
-      builder: (context, scope) {
-        return FloatingActionButton(
-          onPressed: () async {
-            /// When the button is pressed, we call [increment()] to update the counter.
-            final counterService = await scope.dependy<CounterService>();
-            counterService.increment();
-          },
-          tooltip: 'Increment',
-          child: const Icon(Icons.add),
-        );
+    final scope = getDependyScope(context);
+    return FloatingActionButton(
+      onPressed: () async {
+        /// When the button is pressed, we call [increment()] to update the counter.
+        final counterService = await scope.dependy<CounterService>();
+        counterService.increment();
       },
+      tooltip: 'Increment',
+      child: const Icon(Icons.add),
     );
   }
 }
@@ -119,6 +107,15 @@ class CounterView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    /// We are using the [ScopedDependyConsumer] to isolate the rebuilds inside this widget.
+    ///
+    /// We can also do something similar to
+    /// ```dart
+    ///   final scope = getDependyScope(context);
+    ///   final counterService = scope.watchDependy<CounterService>();
+    /// ```
+    ///
+    /// But that will register the listener on the [ScopedDependyProvider] level, causing it to rebuild.
     return ScopedDependyConsumer(
       builder: (context, scope) {
         return FutureBuilder(

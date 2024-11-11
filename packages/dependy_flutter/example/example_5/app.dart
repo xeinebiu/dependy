@@ -1,6 +1,6 @@
 // From the previous example we learned about sharing scopes.
 //
-// On this example, we are about to demonstrate how multiple scoping works when shared using [ScopedDependyModuleMixin]
+// On this example, we are about to demonstrate how multiple scoping works when shared using [ScopedDependyMixin]
 //
 // App
 //    -- LoggerService
@@ -31,7 +31,7 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> with ScopedDependyModuleMixin {
+class _MyAppState extends State<MyApp> with ScopedDependyMixin {
   @override
   Widget build(BuildContext context) {
     /// Share dependy scope with the descendants
@@ -40,7 +40,7 @@ class _MyAppState extends State<MyApp> with ScopedDependyModuleMixin {
     return shareDependyScope(
       child: MaterialApp(
         title:
-            'Example 5 (Share Multiple Scopes using ScopedDependyModuleMixin)',
+            'Example 5 (Share Multiple Scopes using ScopedDependyMixin)',
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
           useMaterial3: true,
@@ -71,7 +71,7 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> with ScopedDependyModuleMixin {
+class _MyHomePageState extends State<MyHomePage> with ScopedDependyMixin {
   @override
   Widget build(BuildContext context) {
     return shareDependyScope(
@@ -79,7 +79,7 @@ class _MyHomePageState extends State<MyHomePage> with ScopedDependyModuleMixin {
         appBar: AppBar(
           backgroundColor: Theme.of(context).colorScheme.inversePrimary,
           title: const Text(
-            'Example 5 (Share Multiple Scopes using ScopedDependyModuleMixin)',
+            'Example 5 (Share Multiple Scopes using ScopedDependyMixin)',
           ),
         ),
         body: const Center(
@@ -108,7 +108,7 @@ class _MyHomePageState extends State<MyHomePage> with ScopedDependyModuleMixin {
         ),
       },
       modules: {
-        // This function comes from [ScopedDependyModuleMixin]
+        // This function comes from [ScopedDependyMixin]
         // Import it if its services are needed on this scope.
         parentModule(),
       },
@@ -122,22 +122,19 @@ class CounterButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ScopedDependyConsumer(
-      builder: (context, scope) {
-        return FloatingActionButton(
-          onPressed: () async {
-            // [LoggerService] lives two scopes on this example higher.
-            final loggerService = await scope.dependy<LoggerService>();
-            loggerService.log('CounterButton onPressed');
+    final scope = getDependyScope(context);
+    return FloatingActionButton(
+      onPressed: () async {
+        // [LoggerService] lives two scopes on this example higher.
+        final loggerService = await scope.dependy<LoggerService>();
+        loggerService.log('CounterButton onPressed');
 
-            /// When the button is pressed, we call [increment()] to update the counter.
-            final counterService = await scope.dependy<CounterService>();
-            counterService.increment();
-          },
-          tooltip: 'Increment',
-          child: const Icon(Icons.add),
-        );
+        /// When the button is pressed, we call [increment()] to update the counter.
+        final counterService = await scope.dependy<CounterService>();
+        counterService.increment();
       },
+      tooltip: 'Increment',
+      child: const Icon(Icons.add),
     );
   }
 }

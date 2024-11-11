@@ -97,22 +97,20 @@ class CounterButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ScopedDependyConsumer(
-      builder: (context, scope) {
-        return FloatingActionButton(
-          onPressed: () async {
-            // [LoggerService] lives two scopes on this example higher.
-            final loggerService = await scope.dependy<LoggerService>();
-            loggerService.log('CounterButton onPressed');
+    final scope = getDependyScope(context);
 
-            /// When the button is pressed, we call [increment()] to update the counter.
-            final counterService = await scope.dependy<CounterService>();
-            counterService.increment();
-          },
-          tooltip: 'Increment',
-          child: const Icon(Icons.add),
-        );
+    return FloatingActionButton(
+      onPressed: () async {
+        // [LoggerService] lives two scopes on this example higher.
+        final loggerService = await scope.dependy<LoggerService>();
+        loggerService.log('CounterButton onPressed');
+
+        /// When the button is pressed, we call [increment()] to update the counter.
+        final counterService = await scope.dependy<CounterService>();
+        counterService.increment();
       },
+      tooltip: 'Increment',
+      child: const Icon(Icons.add),
     );
   }
 }

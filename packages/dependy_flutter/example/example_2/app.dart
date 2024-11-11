@@ -28,13 +28,13 @@ class MyApp extends StatelessWidget {
   }
 }
 
-/// No [ScopedDependyModuleMixin] is applied and [MyHomePage] is a [StatelessWidget]
+/// No [ScopedDependyMixin] is applied and [MyHomePage] is a [StatelessWidget]
 class MyHomePage extends StatelessWidget {
   const MyHomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    /// From previous example, we learned how we can use [ScopedDependyModuleMixin]
+    /// From previous example, we learned how we can use [ScopedDependyMixin]
     ///
     /// This is an alternative way how we can Scope [dependy] modules.
     ///
@@ -99,7 +99,7 @@ class MyHomePage extends StatelessWidget {
       /// ```
       ///
       /// If you are not overriding or providing any extra modules or providers specifically for
-      /// this [Widget], you may not need to use the [ScopedDependyModuleMixin].
+      /// this [Widget], you may not need to use the [ScopedDependyMixin].
       moduleBuilder: (_) {
         /// The module scoped to the lifespan of [_MyHomePageState].
         ///

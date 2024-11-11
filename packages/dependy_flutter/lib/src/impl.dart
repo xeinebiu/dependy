@@ -71,7 +71,7 @@ class _ScopedDependyModuleProvider extends InheritedWidget {
 }
 
 /// A mixin to provide a [Widget] scope for a [dependy] module.
-mixin ScopedDependyModuleMixin<W extends StatefulWidget> on State<W> {
+mixin ScopedDependyMixin<W extends StatefulWidget> on State<W> {
   DependyModule? _cachedDependyModule;
 
   final _listeningObjects = <ChangeNotifier, void Function()>{};
@@ -125,7 +125,7 @@ mixin ScopedDependyModuleMixin<W extends StatefulWidget> on State<W> {
   /// once the [Widget] is removed from the tree.
   ///
   /// If you are not overriding or providing any extra module or providers specifically for
-  /// this [Widget], then you might not need to use the [ScopedDependyModuleMixin].
+  /// this [Widget], then you might not need to use the [ScopedDependyMixin].
   DependyModule moduleBuilder();
 
   DependyModule _cachedModuleBuilder() {
@@ -174,7 +174,7 @@ class ScopedDependyProvider extends StatefulWidget {
   /// once the [Widget] is removed from the tree.
   ///
   /// If you are not overriding or providing any extra module or providers specifically for
-  /// this [Widget], then you might not need to use the [ScopedDependyModuleMixin].
+  /// this [Widget], then you might not need to use the [ScopedDependyMixin].
   final DependyModule Function(
     DependyModule Function() parentModule,
   ) moduleBuilder;
@@ -187,7 +187,7 @@ class ScopedDependyProvider extends StatefulWidget {
 }
 
 class _ScopedDependyProviderState extends State<ScopedDependyProvider>
-    with ScopedDependyModuleMixin {
+    with ScopedDependyMixin {
   @override
   Widget build(BuildContext context) {
     final view = widget.builder(
