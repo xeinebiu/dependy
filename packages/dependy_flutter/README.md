@@ -1,5 +1,8 @@
 # Dependy Flutter
 
+### Docs
+[Dependy Website](https://dependy.xeinebiu.com/)
+
 ### Contents
 - [About](#about)
 - [Installation](#installation)

@@ -2,6 +2,9 @@
 
 [![Pub](https://img.shields.io/pub/v/dependy.svg)](https://pub.dev/packages/dependy)
 
+### Docs
+[Dependy Website](https://dependy.xeinebiu.com/)
+
 ### Contents
 
 1. [About](#about)
