@@ -1,7 +1,9 @@
 /// Dependy
 library;
 
+export 'src/exceptions/dependy_captive_dependency_exception.dart';
 export 'src/exceptions/dependy_circular_dependency_exception.dart';
+export 'src/exceptions/dependy_duplicate_provider_exception.dart';
 export 'src/exceptions/dependy_module_disposed_exception.dart';
 export 'src/exceptions/dependy_provider_disposed_exception.dart';
 export 'src/exceptions/dependy_provider_missing_depends_on_exception.dart';
