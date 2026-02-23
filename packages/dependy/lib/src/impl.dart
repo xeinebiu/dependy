@@ -1,3 +1,4 @@
+import 'exceptions/dependy_captive_dependency_exception.dart';
 import 'exceptions/dependy_circular_dependency_exception.dart';
 import 'exceptions/dependy_duplicate_provider_exception.dart';
 import 'exceptions/dependy_module_disposed_exception.dart';
@@ -19,11 +20,13 @@ final class DependyProvider<T extends Object> {
     String? key,
     Set<Type>? dependsOn,
     DependyDispose<T?>? dispose,
+    bool transient = false,
   })  : _factory = factory,
         _key = key,
         _dependsOn = dependsOn,
         _type = T,
-        _dispose = dispose;
+        _dispose = dispose,
+        _transient = transient;
 
   final DependyFactory<T> _factory;
 
@@ -31,6 +34,7 @@ final class DependyProvider<T extends Object> {
   late final DependyDispose<T?>? _dispose;
   final String? _key;
   final Type _type;
+  final bool _transient;
 
   T? _instance;
 
@@ -61,6 +65,9 @@ final class DependyProvider<T extends Object> {
   Future<T> _create(DependyResolve resolve) async {
     if (_disposed) throw DependyProviderDisposedException((this, _key));
 
+    if (_transient) {
+      return await _factory(_resolveDependsOn(resolve));
+    }
     return _instance ??= await _factory(_resolveDependsOn(resolve));
   }
 
@@ -171,6 +178,7 @@ class DependyModule {
     _verifyMissingProviders();
     _verifyDuplicateProviders();
     _verifyCircularDependency();
+    _verifyCaptiveDependencies();
   }
 
   void _verifyCircularDependency() {
@@ -293,6 +301,49 @@ class DependyModule {
         }
       }
     }
+  }
+
+  void _verifyCaptiveDependencies() {
+    for (final provider in _providers) {
+      if (provider._transient) continue;
+
+      if (provider._dependsOn case final dependencies?) {
+        for (final dependency in dependencies) {
+          final depProvider = _findProvider(dependency);
+          if (depProvider != null && depProvider._transient) {
+            throw DependyCaptiveDependencyException(
+              (
+                provider,
+                provider._key,
+                depProvider,
+                depProvider._key,
+              ),
+            );
+          }
+        }
+      }
+    }
+  }
+
+  DependyProvider<Object>? _findProvider(Type type) {
+    for (final provider in _providers) {
+      if (provider._isSameType(type)) return provider;
+    }
+    return _findProviderInModules(type, _modules);
+  }
+
+  static DependyProvider<Object>? _findProviderInModules(
+    Type type,
+    Set<DependyModule> modules,
+  ) {
+    for (final module in modules) {
+      for (final provider in module._providers) {
+        if (provider._isSameType(type)) return provider;
+      }
+      final found = _findProviderInModules(type, module._modules);
+      if (found != null) return found;
+    }
+    return null;
   }
 }
 

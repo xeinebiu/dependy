@@ -1,20 +1,10 @@
-name: dependy_example
-description: "Dependy"
-version: 1.0.0+1
+name: _
 publish_to: 'none'
 
 environment:
-  sdk: ^3.5.3
+  sdk: ^3.6.0
 
-dependencies:
-  flutter:
-    sdk: flutter
-
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-
-  flutter_lints: ^4.0.0
-
-flutter:
-  uses-material-design: true
+workspace:
+  - packages/dependy
+  - packages/dependy_flutter
+  - apps/dependy_example
