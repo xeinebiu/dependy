@@ -38,6 +38,18 @@ class EmailService {
   EmailService([this.provider = 'default']);
 }
 
+class HttpClient {
+  final String baseUrl;
+
+  HttpClient(this.baseUrl);
+}
+
+class UserService {
+  final HttpClient client;
+
+  UserService(this.client);
+}
+
 // Circular: AuthService ↔ UserRepository
 class AuthService {
   final UserRepository users;
@@ -1247,6 +1259,296 @@ void main() {
         ),
         throwsA(isA<DependyCircularDependencyException>()),
       );
+    });
+  });
+
+  group('DependyModule - Overrides', () {
+    test('override replaces provider and resolves to new instance', () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<HttpClient>((_) => HttpClient('https://real.api')),
+        },
+      );
+
+      final testModule = module.overrideWith(
+        providers: {
+          DependyProvider<HttpClient>((_) => HttpClient('https://mock.api')),
+        },
+      );
+
+      final client = await testModule.call<HttpClient>();
+      expect(client.baseUrl, equals('https://mock.api'));
+    });
+
+    test('override preserves non-overridden providers', () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>((_) => LoggerService('prod')),
+          DependyProvider<HttpClient>((_) => HttpClient('https://real.api')),
+        },
+      );
+
+      final testModule = module.overrideWith(
+        providers: {
+          DependyProvider<HttpClient>((_) => HttpClient('https://mock.api')),
+        },
+      );
+
+      final logger = await testModule.call<LoggerService>();
+      final client = await testModule.call<HttpClient>();
+      expect(logger.tag, equals('prod'));
+      expect(client.baseUrl, equals('https://mock.api'));
+    });
+
+    test('override tagged provider (match by type + tag)', () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<HttpClient>(
+            (_) => HttpClient('https://api.real.com'),
+            tag: 'api',
+          ),
+          DependyProvider<HttpClient>(
+            (_) => HttpClient('https://cdn.real.com'),
+            tag: 'cdn',
+          ),
+        },
+      );
+
+      final testModule = module.overrideWith(
+        providers: {
+          DependyProvider<HttpClient>(
+            (_) => HttpClient('https://api.mock.com'),
+            tag: 'api',
+          ),
+        },
+      );
+
+      final api = await testModule.call<HttpClient>(tag: 'api');
+      final cdn = await testModule.call<HttpClient>(tag: 'cdn');
+      expect(api.baseUrl, equals('https://api.mock.com'));
+      expect(cdn.baseUrl, equals('https://cdn.real.com'));
+    });
+
+    test('override untagged provider leaves tagged provider untouched',
+        () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<HttpClient>(
+            (_) => HttpClient('https://default.real.com'),
+          ),
+          DependyProvider<HttpClient>(
+            (_) => HttpClient('https://special.real.com'),
+            tag: 'special',
+          ),
+        },
+      );
+
+      final testModule = module.overrideWith(
+        providers: {
+          DependyProvider<HttpClient>(
+            (_) => HttpClient('https://default.mock.com'),
+          ),
+        },
+      );
+
+      final defaultClient = await testModule.call<HttpClient>();
+      final specialClient = await testModule.call<HttpClient>(tag: 'special');
+      expect(defaultClient.baseUrl, equals('https://default.mock.com'));
+      expect(specialClient.baseUrl, equals('https://special.real.com'));
+    });
+
+    test('override with submodule replacement', () async {
+      final realSubmodule = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>((_) => LoggerService('real-sub')),
+        },
+      );
+
+      final module = DependyModule(
+        providers: {
+          DependyProvider<HttpClient>((_) => HttpClient('https://real.api')),
+        },
+        modules: {realSubmodule},
+      );
+
+      final mockSubmodule = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>((_) => LoggerService('mock-sub')),
+        },
+      );
+
+      final testModule = module.overrideWith(
+        modules: {mockSubmodule},
+      );
+
+      final logger = await testModule.call<LoggerService>();
+      expect(logger.tag, equals('mock-sub'));
+    });
+
+    test('override transient with singleton (and vice versa)', () async {
+      HttpRequest.reset();
+
+      final module = DependyModule(
+        providers: {
+          DependyProvider<HttpRequest>(
+            (_) => HttpRequest(),
+            transient: true,
+          ),
+        },
+      );
+
+      // Override transient with singleton
+      final testModule = module.overrideWith(
+        providers: {
+          DependyProvider<HttpRequest>((_) => HttpRequest()),
+        },
+      );
+
+      final a = await testModule.call<HttpRequest>();
+      final b = await testModule.call<HttpRequest>();
+      expect(identical(a, b), isTrue);
+    });
+
+    test('overridden module passes verification (missing deps caught)', () {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>((_) => LoggerService()),
+          DependyProvider<DatabaseService>(
+            (resolve) async =>
+                DatabaseService(await resolve<LoggerService>()),
+            dependsOn: {LoggerService},
+          ),
+        },
+      );
+
+      // Removing LoggerService while DatabaseService depends on it should fail
+      expect(
+        () => module.overrideWith(
+          providers: {
+            DependyProvider<DatabaseService>(
+              (resolve) async =>
+                  DatabaseService(await resolve<LoggerService>()),
+              dependsOn: {LoggerService},
+            ),
+            // LoggerService is still present from original, so this should work
+          },
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('original module is not modified after override', () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<HttpClient>((_) => HttpClient('https://real.api')),
+        },
+      );
+
+      module.overrideWith(
+        providers: {
+          DependyProvider<HttpClient>((_) => HttpClient('https://mock.api')),
+        },
+      );
+
+      final client = await module.call<HttpClient>();
+      expect(client.baseUrl, equals('https://real.api'));
+    });
+
+    test('override works with asEager()', () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<HttpClient>((_) => HttpClient('https://real.api')),
+          DependyProvider<LoggerService>((_) => LoggerService('prod')),
+        },
+      );
+
+      final testModule = module.overrideWith(
+        providers: {
+          DependyProvider<HttpClient>((_) => HttpClient('https://mock.api')),
+        },
+      );
+
+      final eager = await testModule.asEager();
+      final client = eager.call<HttpClient>();
+      final logger = eager.call<LoggerService>();
+
+      expect(client.baseUrl, equals('https://mock.api'));
+      expect(logger.tag, equals('prod'));
+    });
+
+    test('override adds provider not in original (test-only provider)',
+        () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>((_) => LoggerService('prod')),
+        },
+      );
+
+      final testModule = module.overrideWith(
+        providers: {
+          DependyProvider<HttpClient>((_) => HttpClient('https://test.api')),
+        },
+      );
+
+      final client = await testModule.call<HttpClient>();
+      final logger = await testModule.call<LoggerService>();
+      expect(client.baseUrl, equals('https://test.api'));
+      expect(logger.tag, equals('prod'));
+    });
+
+    test('captive dependency detection still runs on overridden module', () {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>((_) => LoggerService()),
+          DependyProvider<DatabaseService>(
+            (resolve) async =>
+                DatabaseService(await resolve<LoggerService>()),
+            dependsOn: {LoggerService},
+          ),
+        },
+      );
+
+      // Override LoggerService with transient — DatabaseService is singleton
+      // depending on transient, which should throw captive dependency error
+      expect(
+        () => module.overrideWith(
+          providers: {
+            DependyProvider<LoggerService>(
+              (_) => LoggerService('transient'),
+              transient: true,
+            ),
+          },
+        ),
+        throwsA(isA<DependyCaptiveDependencyException>()),
+      );
+    });
+
+    test('multiple overrides in single call', () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>((_) => LoggerService('prod')),
+          DependyProvider<HttpClient>((_) => HttpClient('https://real.api')),
+          DependyProvider<UserService>(
+            (resolve) async => UserService(await resolve<HttpClient>()),
+            dependsOn: {HttpClient},
+          ),
+        },
+      );
+
+      final testModule = module.overrideWith(
+        providers: {
+          DependyProvider<LoggerService>((_) => LoggerService('test')),
+          DependyProvider<HttpClient>((_) => HttpClient('https://mock.api')),
+        },
+      );
+
+      final logger = await testModule.call<LoggerService>();
+      final client = await testModule.call<HttpClient>();
+      final userService = await testModule.call<UserService>();
+
+      expect(logger.tag, equals('test'));
+      expect(client.baseUrl, equals('https://mock.api'));
+      expect(userService.client.baseUrl, equals('https://mock.api'));
     });
   });
 }

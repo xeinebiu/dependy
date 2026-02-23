@@ -25,6 +25,7 @@
    - [Eager initialization](#eager-initialization)
    - [Transient Providers](#transient-providers)
    - [Tagged Instances](#tagged-instances)
+   - [Overrides for Testing](#overrides-for-testing)
 9. [MIT License](#mit-license)
 
 ---
@@ -43,6 +44,7 @@ It also supports eager or lazy/asynchronous initialization, allowing services to
 - **Tagged instances**: Register multiple providers of the same type using `tag`, resolve with `module<T>(tag: 'name')`.
 - **Transient providers**: Create a fresh instance on every resolution with `transient: true`.
 - **Captive dependency detection**: Fail fast when a singleton depends on a transient provider.
+- **Overrides for testing**: Swap providers in a module for tests/mocking with `overrideWith`, without rebuilding the entire module tree.
 - **Async initialization**: Initialize services asynchronously.
 - **Eager initialization**: Initialize and prepare all services eagerly.
 
@@ -52,7 +54,7 @@ Add `dependy` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  dependy: ^1.4.0
+  dependy: ^1.5.0
 ```
 
 Then, run:
@@ -937,6 +939,80 @@ void main() async {
 
   final userService = await module<UserService>();
   print(userService.fetchUser(42));  // GET https://api.example.com/users/42
+}
+```
+
+### Overrides for Testing
+
+Use `overrideWith` to swap specific providers in a module for tests or mocking — without rebuilding the entire module tree. The original module is not modified, making it safe for parallel tests.
+
+```dart
+import 'package:dependy/dependy.dart';
+
+class HttpClient {
+  final String baseUrl;
+  HttpClient(this.baseUrl);
+  String get(String path) => 'GET $baseUrl$path';
+}
+
+class MockHttpClient extends HttpClient {
+  MockHttpClient() : super('https://mock.test');
+  @override
+  String get(String path) => 'MOCK $baseUrl$path';
+}
+
+class UserService {
+  final HttpClient _client;
+  UserService(this._client);
+  String fetchUser(int id) => _client.get('/users/$id');
+}
+
+final productionModule = DependyModule(
+  providers: {
+    DependyProvider<HttpClient>(
+      (_) => HttpClient('https://api.example.com'),
+    ),
+    DependyProvider<UserService>(
+      (resolve) async => UserService(await resolve<HttpClient>()),
+      dependsOn: {HttpClient},
+    ),
+  },
+);
+
+void main() async {
+  // Test — swap HttpClient with a mock, keep everything else
+  final testModule = productionModule.overrideWith(
+    providers: {
+      DependyProvider<HttpClient>((_) => MockHttpClient()),
+    },
+  );
+
+  final userService = await testModule<UserService>();
+  print(userService.fetchUser(42));
+  // MOCK https://mock.test/users/42
+
+  // Override tagged providers
+  final taggedModule = DependyModule(
+    providers: {
+      DependyProvider<HttpClient>(
+        (_) => HttpClient('https://api.real.com'),
+        tag: 'api',
+      ),
+    },
+  );
+
+  final testTagged = taggedModule.overrideWith(
+    providers: {
+      DependyProvider<HttpClient>(
+        (_) => MockHttpClient(),
+        tag: 'api',
+      ),
+    },
+  );
+
+  final client = await testTagged<HttpClient>(tag: 'api');
+  print(client.get('/health'));
+  // MOCK https://mock.test/health
 }
 ```
 
