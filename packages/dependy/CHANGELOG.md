@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.4.0
+
+### Features
+
+* **Tagged instances**: Added optional `tag` parameter to `DependyProvider` for registering multiple
+  instances of the same type. Resolve with `module<T>(tag: 'name')`. Tags work with singletons,
+  transients, submodules, eager modules, and all verification checks (duplicates, circular
+  dependencies, captive dependencies).
+
+---
+
 ## 1.3.0
 
 ### Features

@@ -998,4 +998,255 @@ void main() {
       expect(e.toString(), equals('DependyCaptiveDependencyException'));
     });
   });
+
+  group('DependyModule - Tagged instances', () {
+    test('two providers of same type with different tags resolve correctly',
+        () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>(
+            (_) => LoggerService('console'),
+            tag: 'console',
+          ),
+          DependyProvider<LoggerService>(
+            (_) => LoggerService('file'),
+            tag: 'file',
+          ),
+        },
+      );
+
+      final console = await module.call<LoggerService>(tag: 'console');
+      final file = await module.call<LoggerService>(tag: 'file');
+
+      expect(console.tag, equals('console'));
+      expect(file.tag, equals('file'));
+      expect(identical(console, file), isFalse);
+    });
+
+    test('same type and same tag throws DependyDuplicateProviderException',
+        () {
+      expect(
+        () => DependyModule(
+          providers: {
+            DependyProvider<LoggerService>(
+              (_) => LoggerService('a'),
+              tag: 'same',
+            ),
+            DependyProvider<LoggerService>(
+              (_) => LoggerService('b'),
+              tag: 'same',
+            ),
+          },
+        ),
+        throwsA(isA<DependyDuplicateProviderException>()),
+      );
+    });
+
+    test('untagged and tagged of same type coexist', () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>(
+            (_) => LoggerService('default'),
+          ),
+          DependyProvider<LoggerService>(
+            (_) => LoggerService('special'),
+            tag: 'special',
+          ),
+        },
+      );
+
+      final defaultLogger = await module.call<LoggerService>();
+      final specialLogger = await module.call<LoggerService>(tag: 'special');
+
+      expect(defaultLogger.tag, equals('default'));
+      expect(specialLogger.tag, equals('special'));
+      expect(identical(defaultLogger, specialLogger), isFalse);
+    });
+
+    test('tagged resolution from within a factory via resolve', () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>(
+            (_) => LoggerService('api'),
+            tag: 'api',
+          ),
+          DependyProvider<LoggerService>(
+            (_) => LoggerService('cdn'),
+            tag: 'cdn',
+          ),
+          DependyProvider<DatabaseService>(
+            (resolve) async {
+              final logger = await resolve<LoggerService>(tag: 'api');
+              return DatabaseService(logger);
+            },
+            dependsOn: {LoggerService},
+          ),
+        },
+      );
+
+      final db = await module.call<DatabaseService>();
+      expect(db.logger.tag, equals('api'));
+    });
+
+    test('tagged providers work with submodules', () async {
+      final subModule = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>(
+            (_) => LoggerService('sub-tagged'),
+            tag: 'sub',
+          ),
+        },
+      );
+
+      final module = DependyModule(
+        providers: {},
+        modules: {subModule},
+      );
+
+      final logger = await module.call<LoggerService>(tag: 'sub');
+      expect(logger.tag, equals('sub-tagged'));
+    });
+
+    test('missing tagged provider throws DependyProviderNotFoundException',
+        () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>(
+            (_) => LoggerService('default'),
+          ),
+        },
+      );
+
+      expect(
+        () => module.call<LoggerService>(tag: 'nonexistent'),
+        throwsA(isA<DependyProviderNotFoundException>()),
+      );
+    });
+
+    test('requesting wrong tag throws DependyProviderNotFoundException',
+        () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>(
+            (_) => LoggerService('api'),
+            tag: 'api',
+          ),
+        },
+      );
+
+      expect(
+        () => module.call<LoggerService>(tag: 'cdn'),
+        throwsA(isA<DependyProviderNotFoundException>()),
+      );
+
+      // Also requesting without tag should not find a tagged provider
+      expect(
+        () => module.call<LoggerService>(),
+        throwsA(isA<DependyProviderNotFoundException>()),
+      );
+    });
+
+    test('tagged transient providers return fresh instances', () async {
+      HttpRequest.reset();
+
+      final module = DependyModule(
+        providers: {
+          DependyProvider<HttpRequest>(
+            (_) => HttpRequest(),
+            tag: 'tagged',
+            transient: true,
+          ),
+        },
+      );
+
+      final a = await module.call<HttpRequest>(tag: 'tagged');
+      final b = await module.call<HttpRequest>(tag: 'tagged');
+
+      expect(identical(a, b), isFalse);
+      expect(a.id, isNot(equals(b.id)));
+    });
+
+    test('tagged singleton providers return same instance', () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>(
+            (_) => LoggerService('singleton-tagged'),
+            tag: 'cached',
+          ),
+        },
+      );
+
+      final a = await module.call<LoggerService>(tag: 'cached');
+      final b = await module.call<LoggerService>(tag: 'cached');
+
+      expect(identical(a, b), isTrue);
+    });
+
+    test('EagerDependyModule resolves tagged providers', () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>(
+            (_) => LoggerService('eager-api'),
+            tag: 'api',
+          ),
+          DependyProvider<LoggerService>(
+            (_) => LoggerService('eager-cdn'),
+            tag: 'cdn',
+          ),
+        },
+      );
+
+      final eager = await module.asEager();
+      final api = eager.call<LoggerService>(tag: 'api');
+      final cdn = eager.call<LoggerService>(tag: 'cdn');
+
+      expect(api.tag, equals('eager-api'));
+      expect(cdn.tag, equals('eager-cdn'));
+      expect(identical(api, cdn), isFalse);
+    });
+
+    test('captive dependency detection with tagged transient provider', () {
+      expect(
+        () => DependyModule(
+          providers: {
+            DependyProvider<HttpRequest>(
+              (_) => HttpRequest(),
+              tag: 'tagged',
+              transient: true,
+            ),
+            DependyProvider<EmailService>(
+              (resolve) async {
+                final request = await resolve<HttpRequest>(tag: 'tagged');
+                return EmailService('request-${request.id}');
+              },
+              dependsOn: {HttpRequest},
+            ),
+          },
+        ),
+        throwsA(isA<DependyCaptiveDependencyException>()),
+      );
+    });
+
+    test('circular dependency detection with tagged providers', () {
+      expect(
+        () => DependyModule(
+          providers: {
+            DependyProvider<AuthService>(
+              (resolve) async =>
+                  AuthService(await resolve<UserRepository>()),
+              dependsOn: {UserRepository},
+              tag: 'tagged',
+            ),
+            DependyProvider<UserRepository>(
+              (resolve) async =>
+                  UserRepository(await resolve<AuthService>()),
+              dependsOn: {AuthService},
+              tag: 'tagged',
+            ),
+          },
+        ),
+        throwsA(isA<DependyCircularDependencyException>()),
+      );
+    });
+  });
 }

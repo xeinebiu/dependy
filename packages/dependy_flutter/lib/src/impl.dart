@@ -9,13 +9,17 @@ final class ScopedDependy {
   const ScopedDependy._(this.dependy, this.watchDependy);
 
   /// Retrieves a dependency of type [T] from the dependency graph.
-  final Future<T> Function<T extends Object>() dependy;
+  ///
+  /// Optionally specify a [tag] to resolve a specific tagged instance.
+  final Future<T> Function<T extends Object>({String? tag}) dependy;
 
   /// Retrieves a [ChangeNotifier] dependency of type [T] from the dependency graph
   /// and registers a listener to rebuild the UI when the notifier changes.
   ///
+  /// Optionally specify a [tag] to resolve a specific tagged instance.
+  ///
   /// This method is safe to call multiple times, as the listener will only be registered once.
-  final Future<T> Function<T extends ChangeNotifier>() watchDependy;
+  final Future<T> Function<T extends ChangeNotifier>({String? tag}) watchDependy;
 }
 
 /// Retrieves the nearest [ScopedDependy] from the widget tree.
@@ -96,8 +100,9 @@ mixin ScopedDependyMixin<W extends StatefulWidget> on State<W> {
   }) {
     return _ScopedDependyModuleProvider(
       scopedDependy: ScopedDependy._(
-        dependy,
-        watchDependy,
+        <T extends Object>({String? tag}) => dependy<T>(tag: tag),
+        <T extends ChangeNotifier>({String? tag}) =>
+            watchDependy<T>(tag: tag),
       ),
       moduleBuilder: _cachedModuleBuilder,
       child: child,
@@ -105,14 +110,19 @@ mixin ScopedDependyMixin<W extends StatefulWidget> on State<W> {
   }
 
   /// Retrieves a dependency of type [T] from the dependency graph.
-  Future<T> dependy<T extends Object>() => _dependy<T>();
+  ///
+  /// Optionally specify a [tag] to resolve a specific tagged instance.
+  Future<T> dependy<T extends Object>({String? tag}) =>
+      _dependy<T>(tag: tag);
 
   /// Retrieves a [ChangeNotifier] dependency of type [T] from the dependency graph
   /// and registers a listener to rebuild the UI when the notifier changes.
   ///
+  /// Optionally specify a [tag] to resolve a specific tagged instance.
+  ///
   /// This method is safe to call multiple times, as the listener will only be registered once.
-  Future<T> watchDependy<T extends ChangeNotifier>() =>
-      _dependy<T>(watch: true);
+  Future<T> watchDependy<T extends ChangeNotifier>({String? tag}) =>
+      _dependy<T>(watch: true, tag: tag);
 
   /// Retrieves a [DependyModule] from the nearest graph.
   DependyModule parentModule() {
@@ -132,9 +142,12 @@ mixin ScopedDependyMixin<W extends StatefulWidget> on State<W> {
     return _cachedDependyModule ??= moduleBuilder();
   }
 
-  Future<T> _dependy<T extends Object>({bool watch = false}) async {
+  Future<T> _dependy<T extends Object>({
+    bool watch = false,
+    String? tag,
+  }) async {
     final module = _cachedModuleBuilder();
-    final obj = await module<T>();
+    final obj = await module<T>(tag: tag);
 
     if (watch) {
       if (obj case final ChangeNotifier notifier) {
@@ -192,7 +205,11 @@ class _ScopedDependyProviderState extends State<ScopedDependyProvider>
   Widget build(BuildContext context) {
     final view = widget.builder(
       context,
-      ScopedDependy._(dependy, watchDependy),
+      ScopedDependy._(
+        <T extends Object>({String? tag}) => dependy<T>(tag: tag),
+        <T extends ChangeNotifier>({String? tag}) =>
+            watchDependy<T>(tag: tag),
+      ),
     );
 
     if (widget.shareScope) {
@@ -243,10 +260,12 @@ class _ScopedDependyConsumerState extends State<ScopedDependyConsumer> {
     return widget.builder(
       context,
       ScopedDependy._(
-        <T extends Object>() => _dependy<T>(context),
-        <T extends ChangeNotifier>() => _dependy<T>(
+        <T extends Object>({String? tag}) =>
+            _dependy<T>(context, tag: tag),
+        <T extends ChangeNotifier>({String? tag}) => _dependy<T>(
           context,
           watch: true,
+          tag: tag,
         ),
       ),
     );
@@ -266,14 +285,15 @@ class _ScopedDependyConsumerState extends State<ScopedDependyConsumer> {
   Future<T> _dependy<T extends Object>(
     BuildContext context, {
     bool watch = false,
+    String? tag,
   }) async {
     final providedModule = widget.module;
     T obj;
     if (providedModule != null) {
-      obj = await providedModule<T>();
+      obj = await providedModule<T>(tag: tag);
     } else {
       final module = getDependyScope(context);
-      obj = await module.dependy<T>();
+      obj = await module.dependy<T>(tag: tag);
     }
 
     if (watch) {
