@@ -10,7 +10,7 @@ import 'dart:async';
 ///       ...
 ///     ),
 /// ````
-typedef DependyResolve = FutureOr<T> Function<T extends Object>();
+typedef DependyResolve = FutureOr<T> Function<T extends Object>({String? tag});
 
 /// Used on [DependyProvider] to notify about disposal of it.
 ///

@@ -18,11 +18,13 @@ final class DependyProvider<T extends Object> {
   DependyProvider(
     DependyFactory<T> factory, {
     String? key,
+    String? tag,
     Set<Type>? dependsOn,
     DependyDispose<T?>? dispose,
     bool transient = false,
   })  : _factory = factory,
         _key = key,
+        _tag = tag,
         _dependsOn = dependsOn,
         _type = T,
         _dispose = dispose,
@@ -33,6 +35,7 @@ final class DependyProvider<T extends Object> {
   final Set<Type>? _dependsOn;
   late final DependyDispose<T?>? _dispose;
   final String? _key;
+  final String? _tag;
   final Type _type;
   final bool _transient;
 
@@ -50,11 +53,11 @@ final class DependyProvider<T extends Object> {
     _disposed = true;
   }
 
-  /// Checks if the type of the provider matches the given type [other].
+  /// Checks if the provider matches the given [type] and [tag].
   ///
-  /// Returns `true` if the types are the same, otherwise `false`.
-  bool _isSameType(Type other) {
-    return _type == other;
+  /// Returns `true` if both the type and tag match, otherwise `false`.
+  bool _matches(Type type, String? tag) {
+    return _type == type && _tag == tag;
   }
 
   /// Creates an instance of type [T].
@@ -75,11 +78,11 @@ final class DependyProvider<T extends Object> {
   ///
   /// Throws [DependyProviderMissingDependsOnException] if a non-declared dependency is requested.
   DependyResolve _resolveDependsOn(DependyResolve resolve) {
-    return <K extends Object>() async {
+    return <K extends Object>({String? tag}) async {
       if (_dependsOn case final dependsOn?) {
         for (final dependency in dependsOn) {
           if (K == dependency) {
-            return resolve<K>();
+            return resolve<K>(tag: tag);
           }
         }
       }
@@ -134,24 +137,29 @@ class DependyModule {
 
   /// Calls the provider for the requested type [T].
   ///
+  /// Optionally specify a [tag] to resolve a specific tagged instance.
+  ///
   /// Throws [DependyProviderNotFoundException] if no provider for [T] is found.
-  Future<T> call<T extends Object>() async {
+  Future<T> call<T extends Object>({String? tag}) async {
     if (_disposed) {
       throw DependyModuleDisposedException((this, _key));
     }
 
     final visited = <DependyModule>{};
-    return _callWithModules<T>(this, visited);
+    return _callWithModules<T>(this, visited, tag: tag);
   }
 
   Future<T> _callWithModules<T extends Object>(
     DependyModule module,
-    Set<DependyModule> visited,
-  ) async {
+    Set<DependyModule> visited, {
+    String? tag,
+  }) async {
     // First check in current module
     for (final provider in module._providers) {
-      if (provider._isSameType(T)) {
-        return await provider._create(module.call) as T;
+      if (provider._matches(T, tag)) {
+        return await provider._create(
+          <K extends Object>({String? tag}) => module.call<K>(tag: tag),
+        ) as T;
       }
     }
 
@@ -161,7 +169,7 @@ class DependyModule {
     for (final module in module._modules) {
       if (!visited.contains(module)) {
         try {
-          return await module._callWithModules<T>(module, visited);
+          return await module._callWithModules<T>(module, visited, tag: tag);
         } catch (e) {
           // Continue searching, do not throw if not found
           if (e is! DependyProviderNotFoundException) {
@@ -182,8 +190,8 @@ class DependyModule {
   }
 
   void _verifyCircularDependency() {
-    final visited = <Type>{};
-    final inProgress = <Type>{};
+    final visited = <(Type, String?)>{};
+    final inProgress = <(Type, String?)>{};
 
     for (final provider in _providers) {
       _checkCircularDependency(provider, visited, inProgress);
@@ -192,59 +200,83 @@ class DependyModule {
 
   void _checkCircularDependency(
     DependyProvider<Object> provider,
-    Set<Type> visited,
-    Set<Type> inProgress,
+    Set<(Type, String?)> visited,
+    Set<(Type, String?)> inProgress,
   ) {
-    if (visited.contains(provider._type)) return;
+    final key = (provider._type, provider._tag);
 
-    if (inProgress.contains(provider._type)) {
+    if (visited.contains(key)) return;
+
+    if (inProgress.contains(key)) {
       throw DependyCircularDependencyException(
         (
           provider,
           provider._key,
-          inProgress.last,
+          inProgress.last.$1,
         ),
       );
     }
 
-    inProgress.add(provider._type);
+    inProgress.add(key);
 
     final dependencies = provider._dependsOn;
     if (dependencies != null) {
       for (final dependency in dependencies) {
-        final dependentProvider = _providers.firstWhere(
-          (f) => f._isSameType(dependency),
-          orElse: () {
-            for (final module in _modules) {
-              if (module._providers.any((p) => p._isSameType(dependency))) {
-                return module._providers.firstWhere(
-                  (p) => p._isSameType(dependency),
-                );
-              }
-            }
+        final dependentProviders = _findAllProviders(dependency);
 
-            throw DependyProviderNotFoundException(
-              (
-                provider,
-                provider._key,
-                dependency,
-              ),
-            );
-          },
-        );
-        _checkCircularDependency(dependentProvider, visited, inProgress);
+        if (dependentProviders.isEmpty) {
+          throw DependyProviderNotFoundException(
+            (
+              provider,
+              provider._key,
+              dependency,
+            ),
+          );
+        }
+
+        for (final dependentProvider in dependentProviders) {
+          _checkCircularDependency(dependentProvider, visited, inProgress);
+        }
       }
     }
 
-    inProgress.remove(provider._type);
-    visited.add(provider._type);
+    inProgress.remove(key);
+    visited.add(key);
+  }
+
+  /// Finds all providers of the given [type] across this module and submodules.
+  List<DependyProvider<Object>> _findAllProviders(Type type) {
+    final result = <DependyProvider<Object>>[];
+    _collectProviders(type, this, result, <DependyModule>{});
+    return result;
+  }
+
+  static void _collectProviders(
+    Type type,
+    DependyModule module,
+    List<DependyProvider<Object>> result,
+    Set<DependyModule> visited,
+  ) {
+    if (visited.contains(module)) return;
+    visited.add(module);
+
+    for (final provider in module._providers) {
+      if (provider._type == type) {
+        result.add(provider);
+      }
+    }
+
+    for (final submodule in module._modules) {
+      _collectProviders(type, submodule, result, visited);
+    }
   }
 
   void _verifyMissingProviders() {
     for (final provider in _providers) {
       if (provider._dependsOn case final dependencies?) {
         for (final dependency in dependencies) {
-          final exists = _providers.any((p) => p._isSameType(dependency)) ||
+          final exists =
+              _providers.any((p) => p._type == dependency) ||
               _checkDependencyInModules(
                 dependency,
                 _modules,
@@ -270,7 +302,7 @@ class DependyModule {
   ) {
     for (final module in modules) {
       // Check if the module itself has the dependency
-      if (module._providers.any((p) => p._isSameType(dependency))) {
+      if (module._providers.any((p) => p._type == dependency)) {
         return true;
       }
 
@@ -289,7 +321,7 @@ class DependyModule {
     for (final provider in _providers) {
       for (final otherProvider in _providers) {
         if (provider != otherProvider &&
-            provider._isSameType(otherProvider._type)) {
+            provider._matches(otherProvider._type, otherProvider._tag)) {
           throw DependyDuplicateProviderException(
             (
               this,
@@ -309,48 +341,29 @@ class DependyModule {
 
       if (provider._dependsOn case final dependencies?) {
         for (final dependency in dependencies) {
-          final depProvider = _findProvider(dependency);
-          if (depProvider != null && depProvider._transient) {
-            throw DependyCaptiveDependencyException(
-              (
-                provider,
-                provider._key,
-                depProvider,
-                depProvider._key,
-              ),
-            );
+          final depProviders = _findAllProviders(dependency);
+          for (final depProvider in depProviders) {
+            if (depProvider._transient) {
+              throw DependyCaptiveDependencyException(
+                (
+                  provider,
+                  provider._key,
+                  depProvider,
+                  depProvider._key,
+                ),
+              );
+            }
           }
         }
       }
     }
-  }
-
-  DependyProvider<Object>? _findProvider(Type type) {
-    for (final provider in _providers) {
-      if (provider._isSameType(type)) return provider;
-    }
-    return _findProviderInModules(type, _modules);
-  }
-
-  static DependyProvider<Object>? _findProviderInModules(
-    Type type,
-    Set<DependyModule> modules,
-  ) {
-    for (final module in modules) {
-      for (final provider in module._providers) {
-        if (provider._isSameType(type)) return provider;
-      }
-      final found = _findProviderInModules(type, module._modules);
-      if (found != null) return found;
-    }
-    return null;
   }
 }
 
 class EagerDependyModule {
   EagerDependyModule._(this._module);
 
-  final Map<Type, Object> _resolvedProviders = {};
+  final Map<(Type, String?), Object> _resolvedProviders = {};
   final DependyModule _module;
 
   bool get disposed => _module.disposed;
@@ -371,9 +384,10 @@ class EagerDependyModule {
     Set<DependyModule> visited,
   ) async {
     for (final provider in module._providers) {
-      if (!_resolvedProviders.containsKey(provider._type)) {
-        _resolvedProviders[provider._type] = await provider._create(
-          module.call,
+      final key = (provider._type, provider._tag);
+      if (!_resolvedProviders.containsKey(key)) {
+        _resolvedProviders[key] = await provider._create(
+          <K extends Object>({String? tag}) => module.call<K>(tag: tag),
         );
       }
     }
@@ -387,14 +401,14 @@ class EagerDependyModule {
     }
   }
 
-  T call<T extends Object>() {
+  T call<T extends Object>({String? tag}) {
     if (disposed) {
       throw DependyModuleDisposedException((this, _module._key));
     }
 
     if (!initialized) {}
 
-    final provider = _resolvedProviders[T];
+    final provider = _resolvedProviders[(T, tag)];
     if (provider == null) {
       throw DependyProviderNotFoundException((T, _module._key));
     }

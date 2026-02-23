@@ -23,6 +23,8 @@
    - [Services with Dependencies](#services-with-dependencies)
    - [Multiple Modules with Dependencies](#multiple-modules-with-dependencies)
    - [Eager initialization](#eager-initialization)
+   - [Transient Providers](#transient-providers)
+   - [Tagged Instances](#tagged-instances)
 9. [MIT License](#mit-license)
 
 ---
@@ -38,6 +40,9 @@ It also supports eager or lazy/asynchronous initialization, allowing services to
 - **Provider-based DI**: Define how each service (provider) is created and manage dependencies between them.
 - **Support for modules**: Structure your providers into modules to improve separation of concerns.
 - **Circular dependency detection**: Avoid infinite loops by tracking dependencies.
+- **Tagged instances**: Register multiple providers of the same type using `tag`, resolve with `module<T>(tag: 'name')`.
+- **Transient providers**: Create a fresh instance on every resolution with `transient: true`.
+- **Captive dependency detection**: Fail fast when a singleton depends on a transient provider.
 - **Async initialization**: Initialize services asynchronously.
 - **Eager initialization**: Initialize and prepare all services eagerly.
 
@@ -47,7 +52,7 @@ Add `dependy` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  dependy: ^1.2.0
+  dependy: ^1.4.0
 ```
 
 Then, run:
@@ -181,7 +186,19 @@ A **scope** defines the lifetime of a service or object. Scopes determine how lo
     - They are created once and shared across the entire app.
     - Perfect for services that need to persist throughout the app's lifecycle, such as logging, authentication, or configuration services.
 
-2. **Scoped Scope**:
+2. **Transient Scope**:
+    - A new instance is created on every resolution — nothing is cached.
+    - Enable by setting `transient: true` on a `DependyProvider`.
+    - Ideal for short-lived objects like HTTP requests, form validators, or command handlers.
+    - A singleton provider **cannot** depend on a transient provider. Dependy detects this at module construction and throws a `DependyCaptiveDependencyException`.
+
+3. **Tagged Instances**:
+    - Register multiple providers of the same type by assigning a unique `tag` to each.
+    - Resolve with `module<T>(tag: 'name')`. An untagged provider is resolved with `module<T>()`.
+    - Inside factories, forward the tag: `resolve<T>(tag: 'name')`.
+    - `dependsOn` remains `Set<Type>` — tags are a routing detail inside factories, not a dependency declaration.
+
+4. **Scoped Scope**:
     - Services in this scope are temporary and exist only for a short time.
     - These services are disposed of when they are no longer needed.
     - Useful for services that are tied to a specific part of your app, like a screen, a form, or a session.
@@ -424,6 +441,12 @@ This exception is thrown when a provider tries to resolve a dependency that has 
 This exception is thrown when you try to use a provider that has already been disposed. Once a provider is disposed, it cannot be used anymore.
 
 **Example**: If you call `<module><T>()` on a disposed provider, a `DependyProviderDisposedException` will be raised.
+
+### `DependyCaptiveDependencyException`
+
+This exception is thrown when a singleton provider depends on a transient provider. This would silently "capture" the transient instance, defeating its purpose. Either make the consuming provider transient as well, or make the dependency a singleton.
+
+**Example**: If a singleton `AuthService` declares `dependsOn: {SessionToken}` and `SessionToken` is registered with `transient: true`, a `DependyCaptiveDependencyException` will be thrown at module construction.
 
 ### `DependyDuplicateProviderException`
 
@@ -758,7 +781,164 @@ void main() async {
 
 ```
 
+### Transient Providers
 
+In this example, `FormValidator` is transient — each resolution returns a fresh instance with its own state. `LoggerService` and `AuthService` remain singletons, shared across the app.
+
+```dart
+import 'package:dependy/dependy.dart';
+
+class LoggerService {
+  void log(String message) {
+    print('[Logger]: $message');
+  }
+}
+
+class AuthService {
+  final LoggerService _logger;
+
+  AuthService(this._logger);
+
+  void authenticate(String user) {
+    _logger.log('Authenticating $user');
+  }
+}
+
+class FormValidator {
+  final LoggerService _logger;
+  final List<String> _errors = [];
+
+  FormValidator(this._logger);
+
+  void validate(String field, String value) {
+    if (value.isEmpty) {
+      _errors.add('$field is required');
+    }
+    _logger.log('Validated $field');
+  }
+
+  bool get isValid => _errors.isEmpty;
+
+  List<String> get errors => List.unmodifiable(_errors);
+}
+
+// LoggerService and AuthService are singletons — shared across the app.
+// FormValidator is transient — a fresh instance for every form submission.
+//
+// Note: a singleton cannot depend on a transient provider.
+// Dependy enforces this at module creation to prevent the "captive dependency"
+// anti-pattern. A transient can safely depend on singletons.
+final dependy = DependyModule(
+  providers: {
+    DependyProvider<LoggerService>(
+      (_) => LoggerService(),
+    ),
+    DependyProvider<AuthService>(
+      (dependy) async {
+        final logger = await dependy<LoggerService>();
+        return AuthService(logger);
+      },
+      dependsOn: {LoggerService},
+    ),
+    DependyProvider<FormValidator>(
+      (dependy) async {
+        final logger = await dependy<LoggerService>();
+        return FormValidator(logger);
+      },
+      dependsOn: {LoggerService},
+      transient: true,
+    ),
+  },
+);
+
+void main() async {
+  // Each call returns a fresh FormValidator with its own error state
+  final loginForm = await dependy<FormValidator>();
+  loginForm.validate('email', 'user@example.com');
+  loginForm.validate('password', '');
+  print('Login valid: ${loginForm.isValid}'); // false
+  print('Errors: ${loginForm.errors}'); // [password is required]
+
+  final signupForm = await dependy<FormValidator>();
+  signupForm.validate('email', 'new@example.com');
+  signupForm.validate('password', 'secret123');
+  print('Signup valid: ${signupForm.isValid}'); // true
+
+  // AuthService is a singleton — same instance everywhere
+  final auth = await dependy<AuthService>();
+  auth.authenticate('user@example.com');
+}
+```
+
+### Tagged Instances
+
+Use `tag` to register multiple providers of the same type. Each tagged provider is resolved independently by its tag.
+
+```dart
+import 'package:dependy/dependy.dart';
+
+class HttpClient {
+  final String baseUrl;
+
+  HttpClient(this.baseUrl);
+
+  String get(String path) => 'GET $baseUrl$path';
+}
+
+class UserService {
+  final HttpClient _client;
+
+  UserService(this._client);
+
+  String fetchUser(int id) => _client.get('/users/$id');
+}
+
+class CacheService {
+  final HttpClient _client;
+
+  CacheService(this._client);
+
+  String fetchAsset(String name) => _client.get('/assets/$name');
+}
+
+final module = DependyModule(
+  providers: {
+    DependyProvider<HttpClient>(
+      (_) => HttpClient('https://api.example.com'),
+      tag: 'api',
+    ),
+    DependyProvider<HttpClient>(
+      (_) => HttpClient('https://cdn.example.com'),
+      tag: 'cdn',
+    ),
+    DependyProvider<UserService>(
+      (resolve) async {
+        final client = await resolve<HttpClient>(tag: 'api');
+        return UserService(client);
+      },
+      dependsOn: {HttpClient},
+    ),
+    DependyProvider<CacheService>(
+      (resolve) async {
+        final client = await resolve<HttpClient>(tag: 'cdn');
+        return CacheService(client);
+      },
+      dependsOn: {HttpClient},
+    ),
+  },
+);
+
+void main() async {
+  final apiClient = await module<HttpClient>(tag: 'api');
+  final cdnClient = await module<HttpClient>(tag: 'cdn');
+
+  print(apiClient.get('/health'));   // GET https://api.example.com/health
+  print(cdnClient.get('/logo.png')); // GET https://cdn.example.com/logo.png
+
+  final userService = await module<UserService>();
+  print(userService.fetchUser(42));  // GET https://api.example.com/users/42
+}
+```
 
 ---
 
