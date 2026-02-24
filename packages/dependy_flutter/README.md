@@ -12,6 +12,7 @@
 - [Usage](#usage)
   - [ScopedDependyMixin](#ScopedDependyMixin)
   - [ScopedDependyProvider](#scopeddependyprovider)
+  - [ScopedDependyAsyncBuilder](#scopeddependyasyncbuilder)
   - [Share scope using ScopedDependyProvider](#share-scope-using-scopeddependyprovider)
   - [Share scope using ScopedDependyMixin](#share-scope-using-ScopedDependyMixin)
   - [Share multiple scopes using ScopedDependyMixin](#share-multiple-scopes-using-ScopedDependyMixin)
@@ -27,8 +28,8 @@ To add Dependy Flutter to our project, we need to update `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  dependy: ^1.2.0
-  dependy_flutter: ^1.2.0
+  dependy: ^1.8.0
+  dependy_flutter: ^1.8.0
 ```
 
 Next, we run this command to install the dependencies:
@@ -280,6 +281,115 @@ class MyHomePage extends StatelessWidget {
     );
   }
 }
+```
+
+### ScopedDependyAsyncBuilder
+
+`ScopedDependyAsyncBuilder<T>` resolves an async dependency and provides a sealed `AsyncDependySnapshot<T>` to a single builder — replacing the common pattern of nesting `ScopedDependyConsumer` with `FutureBuilder`.
+
+When the resolved type is a `ChangeNotifier`, the widget automatically listens for changes and rebuilds (controlled via the `watch` parameter, which defaults to `true`).
+
+The sealed snapshot hierarchy enables exhaustive pattern matching:
+
+- `AsyncDependyLoading` — the dependency is being resolved
+- `AsyncDependyData` — the dependency has been resolved successfully
+- `AsyncDependyError` — the dependency resolution failed
+
+```dart
+class MyHomePage extends StatelessWidget {
+  const MyHomePage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ScopedDependyProvider(
+      shareScope: true,
+      builder: (context, scope) {
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('ScopedDependyAsyncBuilder'),
+          ),
+          body: const Center(
+            child: CounterView(),
+          ),
+          floatingActionButton: const CounterButton(),
+        );
+      },
+      moduleBuilder: (_) {
+        return DependyModule(
+          providers: {},
+          modules: {
+            servicesModule,
+          },
+        );
+      },
+    );
+  }
+}
+
+/// [CounterButton] resolves [CounterService] on press and calls [increment()].
+///
+/// No need for [ScopedDependyAsyncBuilder] here — the button doesn't display
+/// async data. It simply triggers an action using the shared scope.
+class CounterButton extends StatelessWidget {
+  const CounterButton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final scope = getDependyScope(context);
+
+    return FloatingActionButton(
+      onPressed: () async {
+        final counterService = await scope.dependy<CounterService>();
+        counterService.increment();
+      },
+      tooltip: 'Increment',
+      child: const Icon(Icons.add),
+    );
+  }
+}
+
+/// [CounterView] uses [ScopedDependyAsyncBuilder] to resolve and watch
+/// [CounterService], handling all three states with exhaustive pattern matching.
+///
+/// This replaces the [ScopedDependyConsumer] + [FutureBuilder] nesting pattern.
+class CounterView extends StatelessWidget {
+  const CounterView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ScopedDependyAsyncBuilder<CounterService>(
+      builder: (context, snapshot) => switch (snapshot) {
+        AsyncDependyData(:final value) => Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text('You have pushed the button this many times:'),
+              Text(
+                '${value.counter}',
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
+            ],
+          ),
+        AsyncDependyError(:final error) => Text('Failed to load: $error'),
+        AsyncDependyLoading() => const CircularProgressIndicator(),
+      },
+    );
+  }
+}
+```
+
+You can also resolve from an explicit module or a tagged provider:
+
+```dart
+ScopedDependyAsyncBuilder<MyService>(
+  module: myModule,      // resolve from this module instead of the widget tree scope
+  tag: 'special',        // resolve a tagged provider
+  watch: false,          // disable automatic ChangeNotifier watching
+  builder: (context, snapshot) => switch (snapshot) {
+    AsyncDependyData(:final value) => Text('$value'),
+    AsyncDependyError(:final error) => Text('Error: $error'),
+    AsyncDependyLoading() => const CircularProgressIndicator(),
+  },
+)
 ```
 
 ### Share scope using ScopedDependyProvider

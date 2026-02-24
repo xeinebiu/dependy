@@ -1,3 +1,26 @@
+## 1.8.0
+
+### Features:
+* **ScopedDependyAsyncBuilder**: Added `ScopedDependyAsyncBuilder<T>` widget that resolves an async dependency and provides a sealed `AsyncDependySnapshot<T>` to a single builder — replacing the common pattern of nesting `ScopedDependyConsumer` with `FutureBuilder`.
+    - Sealed snapshot hierarchy (`AsyncDependyLoading`, `AsyncDependyData`, `AsyncDependyError`) enables exhaustive pattern matching.
+    - Automatically watches `ChangeNotifier` dependencies and rebuilds on changes (controlled via the `watch` parameter, defaults to `true`).
+    - Supports tagged provider resolution via the `tag` parameter.
+    - Supports resolving from an explicit `DependyModule` instead of the widget tree scope.
+
+### Code Example:
+
+```dart
+ScopedDependyAsyncBuilder<CounterService>(
+  builder: (context, snapshot) => switch (snapshot) {
+    AsyncDependyData(:final value) => Text('${value.counter}'),
+    AsyncDependyError(:final error) => Text('Error: $error'),
+    AsyncDependyLoading() => const CircularProgressIndicator(),
+  },
+)
+```
+
+---
+
 ## 1.2.0
 
 ### Features:
