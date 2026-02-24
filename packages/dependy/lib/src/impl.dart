@@ -182,6 +182,34 @@ class DependyModule {
     throw DependyProviderNotFoundException((T, _key));
   }
 
+  /// Creates a new [DependyModule] with the given [providers] replacing any
+  /// existing providers that match by type and tag.
+  ///
+  /// If [modules] is provided, it replaces the submodules entirely.
+  /// The original module is not modified.
+  ///
+  /// Verification runs on the new module, so misconfigurations are caught early.
+  DependyModule overrideWith({
+    Set<DependyProvider<Object>> providers = const {},
+    Set<DependyModule>? modules,
+    String? key,
+  }) {
+    final mergedProviders = <DependyProvider<Object>>{..._providers};
+
+    for (final override in providers) {
+      mergedProviders.removeWhere(
+        (p) => p._type == override._type && p._tag == override._tag,
+      );
+      mergedProviders.add(override);
+    }
+
+    return DependyModule(
+      providers: mergedProviders,
+      modules: modules ?? _modules,
+      key: key ?? _key,
+    );
+  }
+
   void _verify() {
     _verifyMissingProviders();
     _verifyDuplicateProviders();

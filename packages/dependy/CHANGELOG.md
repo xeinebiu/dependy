@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.5.0
+
+### Features
+
+* **Overrides for testing**: Added `overrideWith` method to `DependyModule`. Create a new module with
+  specific providers replaced by (Type, tag) match — perfect for swapping real services with mocks in
+  tests. The original module is not modified, making it safe for parallel tests. Full verification
+  runs on the new module so misconfigurations are caught early.
+
+---
+
 ## 1.4.0
 
 ### Features
@@ -48,9 +59,7 @@ final dependyModule = DependyModule(providers: { /* providers here */
 });
 
 // Eagerly resolve all providers
-final eagerModule = await
-dependyModule.asEager
-();
+final eagerModule = awaitdependyModule.asEager();
 
 // Now you can call services directly
 final myService = eagerModule<MyService>();
