@@ -27,6 +27,7 @@
    - [Tagged Instances](#tagged-instances)
    - [Overrides for Testing](#overrides-for-testing)
    - [Debug Graph](#debug-graph)
+   - [Provider Decorators](#provider-decorators)
 9. [MIT License](#mit-license)
 
 ---
@@ -46,7 +47,8 @@ It also supports eager or lazy/asynchronous initialization, allowing services to
 - **Transient providers**: Create a fresh instance on every resolution with `transient: true`.
 - **Captive dependency detection**: Fail fast when a singleton depends on a transient provider.
 - **Overrides for testing**: Swap providers in a module for tests/mocking with `overrideWith`, without rebuilding the entire module tree.
-- **Debug graph**: Inspect the entire dependency tree with `debugGraph()` — shows types, tags, lifecycle, resolution status, and nested modules as a formatted ASCII tree.
+- **Provider decorators**: Wrap resolved instances with composable transformations (logging, caching, retry, auth) applied after the factory, inside singleton caching. Decorators receive full module resolve and are applied in list order.
+- **Debug graph**: Inspect the entire dependency tree with `debugGraph()` — shows types, tags, lifecycle, resolution status, decorator counts, and nested modules as a formatted ASCII tree.
 - **Async initialization**: Initialize services asynchronously.
 - **Eager initialization**: Initialize and prepare all services eagerly.
 
@@ -56,7 +58,7 @@ Add `dependy` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  dependy: ^1.6.0
+  dependy: ^1.7.0
 ```
 
 Then, run:
@@ -1105,6 +1107,117 @@ Future<void> main() async {
 ```
 
 `EagerDependyModule` also supports `debugGraph()`, showing `resolved` status for eagerly initialized providers.
+
+### Provider Decorators
+
+Use `decorators` to wrap a resolved instance with composable transformations — logging, caching, retry logic, auth, etc. — without baking them into the factory. Decorators are applied in list order after the factory creates the base instance, inside the provider's singleton caching.
+
+Each decorator receives the current instance and a `resolve` function for resolving additional dependencies from the module (not restricted by `dependsOn`).
+
+```dart
+import 'package:dependy/dependy.dart';
+
+abstract class ApiClient {
+  Future<String> get(String path);
+}
+
+class HttpApiClient implements ApiClient {
+  @override
+  Future<String> get(String path) async => 'response from $path';
+
+  @override
+  String toString() => 'HttpApiClient';
+}
+
+class RetryApiClient implements ApiClient {
+  final ApiClient _inner;
+  final int maxRetries;
+
+  RetryApiClient(this._inner, {this.maxRetries = 3});
+
+  @override
+  Future<String> get(String path) async {
+    for (var i = 0; i < maxRetries; i++) {
+      try {
+        return await _inner.get(path);
+      } catch (_) {
+        if (i == maxRetries - 1) rethrow;
+      }
+    }
+    throw StateError('unreachable');
+  }
+
+  @override
+  String toString() => 'RetryApiClient(inner: $_inner)';
+}
+
+class LoggerService {
+  void log(String message) => print('[LOG] $message');
+}
+
+class LoggingApiClient implements ApiClient {
+  final ApiClient _inner;
+  final LoggerService _logger;
+
+  LoggingApiClient(this._inner, this._logger);
+
+  @override
+  Future<String> get(String path) async {
+    _logger.log('GET $path');
+    final result = await _inner.get(path);
+    _logger.log('Response: $result');
+    return result;
+  }
+
+  @override
+  String toString() => 'LoggingApiClient(inner: $_inner)';
+}
+
+final module = DependyModule(
+  key: 'app',
+  providers: {
+    DependyProvider<LoggerService>((_) => LoggerService()),
+    DependyProvider<ApiClient>(
+      (_) => HttpApiClient(),
+      decorators: [
+        // First decorator wraps the raw instance
+        (client, _) => RetryApiClient(client, maxRetries: 3),
+        // Second decorator wraps the first's output, resolves LoggerService
+        (client, resolve) async {
+          final logger = await resolve<LoggerService>();
+          return LoggingApiClient(client, logger);
+        },
+      ],
+    ),
+  },
+);
+
+void main() async {
+  final client = await module<ApiClient>();
+
+  // Resolved: LoggingApiClient(inner: RetryApiClient(inner: HttpApiClient))
+  print('Resolved: $client');
+
+  final response = await client.get('/users');
+  // [LOG] GET /users
+  // [LOG] Response: response from /users
+  print('Got: $response');
+
+  // debugGraph() shows decorator count
+  print(module.debugGraph());
+  // DependyModule (key: app)
+  // +-- LoggerService [singleton] - cached
+  // \-- ApiClient [singleton] - cached
+  //      decorators: 2
+}
+```
+
+**Key points:**
+- **Singletons** are decorated once and cached — subsequent calls return the same decorated instance.
+- **Transients** are decorated on every call, wrapping each fresh instance.
+- **Order matters** — decorators are applied in list order. First decorator wraps the raw instance, second wraps the first's output, etc.
+- **Decorators receive full module resolve** — they can resolve any type available in the module hierarchy, not just types listed in `dependsOn`.
+- **`overrideWith`** replaces the whole provider including its decorators. The override's own decorators (if any) are used; the original's decorators are not inherited.
 
 ---
 

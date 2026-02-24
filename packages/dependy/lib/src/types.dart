@@ -45,3 +45,28 @@ typedef DependyDispose<T> = void Function(T);
 typedef DependyFactory<T extends Object> = FutureOr<T> Function(
   DependyResolve dependencies,
 );
+
+/// Used on [DependyProvider] to decorate an instance of [T] after creation.
+///
+/// Receives the created [instance] and a [resolve] function for resolving
+/// additional dependencies from the module.
+///
+/// Decorators are applied in order after the factory creates the base instance.
+///
+/// **Example**
+///
+/// ````dart
+///    DependyProvider<ApiClient>(
+///       (_) => HttpApiClient(),
+///       decorators: [
+///         (client, resolve) async {
+///           final logger = await resolve<LoggerService>();
+///           return LoggingApiClient(client, logger);
+///         },
+///       ],
+///     )
+/// ````
+typedef DependyDecorate<T extends Object> = FutureOr<T> Function(
+  T instance,
+  DependyResolve resolve,
+);

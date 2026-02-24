@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.7.0
+
+### Features
+
+* **Provider decorators**: Added optional `decorators` parameter to `DependyProvider`. Decorators are
+  composable transformations applied after the factory creates the base instance, inside the
+  provider's singleton caching. Each decorator receives the instance and a `resolve` function for
+  resolving additional dependencies from the module. Decorators are applied in list order — first
+  decorator wraps the raw instance, second wraps the first's output, etc. Works with singletons
+  (decorated once, cached), transients (decorated on every call), tagged providers, eager modules,
+  and `overrideWith`. Added `DependyDecorate<T>` typedef. `debugGraph()` now shows decorator counts.
+
+---
+
 ## 1.6.0
 
 ### Features

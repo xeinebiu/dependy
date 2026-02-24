@@ -1,6 +1,5 @@
 import 'package:dependy/dependy.dart';
 
-// region Logger
 abstract class LoggerService {
   void log(String message);
 }
@@ -11,9 +10,7 @@ class ConsoleLoggerService extends LoggerService {
     print('[Logger]: $message');
   }
 }
-// endregion
 
-// region Database
 abstract class DatabaseService {
   void connect();
 
@@ -51,9 +48,7 @@ class SqliteDatabaseService extends DatabaseService {
     _logger.log('Closed Sqlite Database');
   }
 }
-// endregion
 
-// region Api
 abstract class ApiService {
   void fetchData();
 
@@ -95,7 +90,6 @@ class MockApiService extends ApiService {
     _logger.log('Disposing $this');
   }
 }
-// endregion
 
 // Singleton module: provides services that live across the application
 final singletonModule = DependyModule(

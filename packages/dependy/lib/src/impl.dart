@@ -22,13 +22,15 @@ final class DependyProvider<T extends Object> {
     Set<Type>? dependsOn,
     DependyDispose<T?>? dispose,
     bool transient = false,
+    List<DependyDecorate<T>>? decorators,
   })  : _factory = factory,
         _key = key,
         _tag = tag,
         _dependsOn = dependsOn,
         _type = T,
         _dispose = dispose,
-        _transient = transient;
+        _transient = transient,
+        _decorators = decorators ?? const [];
 
   final DependyFactory<T> _factory;
 
@@ -38,6 +40,8 @@ final class DependyProvider<T extends Object> {
   final String? _tag;
   final Type _type;
   final bool _transient;
+  final List<DependyDecorate<T>> _decorators;
+  int get _decoratorCount => _decorators.length;
 
   T? _instance;
 
@@ -69,9 +73,23 @@ final class DependyProvider<T extends Object> {
     if (_disposed) throw DependyProviderDisposedException((this, _key));
 
     if (_transient) {
-      return await _factory(_resolveDependsOn(resolve));
+      return _applyDecorators(
+        await _factory(_resolveDependsOn(resolve)),
+        resolve,
+      );
     }
-    return _instance ??= await _factory(_resolveDependsOn(resolve));
+    return _instance ??= await _applyDecorators(
+      await _factory(_resolveDependsOn(resolve)),
+      resolve,
+    );
+  }
+
+  Future<T> _applyDecorators(T instance, DependyResolve resolve) async {
+    var result = instance;
+    for (final decorator in _decorators) {
+      result = await decorator(result, resolve);
+    }
+    return result;
   }
 
   /// Returns a function that can resolve dependencies of type [K].
@@ -287,6 +305,12 @@ class DependyModule {
     if (provider._dependsOn case final deps? when deps.isNotEmpty) {
       final depNames = deps.map((d) => d.toString()).join(', ');
       buffer.writeln('$childIndent dependsOn: {$depNames}');
+    }
+
+    if (provider._decoratorCount > 0) {
+      buffer.writeln(
+        '$childIndent decorators: ${provider._decoratorCount}',
+      );
     }
   }
 
@@ -560,6 +584,12 @@ class EagerDependyModule {
         if (entry._dependsOn case final deps? when deps.isNotEmpty) {
           final depNames = deps.map((d) => d.toString()).join(', ');
           buffer.writeln('$childIndent dependsOn: {$depNames}');
+        }
+
+        if (entry._decoratorCount > 0) {
+          buffer.writeln(
+            '$childIndent decorators: ${entry._decoratorCount}',
+          );
         }
       } else if (entry is DependyModule) {
         final modKeyLabel = entry._key != null ? ' (key: ${entry._key})' : '';

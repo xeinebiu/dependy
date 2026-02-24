@@ -1755,7 +1755,8 @@ void main() {
       expect(logger.tag, equals('prod'));
     });
 
-    test('captive dependency detection still runs on overridden module', () {
+    test(
+        'captive dependency detection still runs on overridden module', () {
       final module = DependyModule(
         providers: {
           DependyProvider<LoggerService>((_) => LoggerService()),
@@ -1779,6 +1780,57 @@ void main() {
         ),
         throwsA(isA<DependyCaptiveDependencyException>()),
       );
+    });
+
+    test('overrideWith preserves override\'s own decorators', () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>(
+            (_) => LoggerService('original'),
+            decorators: [
+              (logger, _) => LoggerService('original-decorated'),
+            ],
+          ),
+        },
+      );
+
+      final testModule = module.overrideWith(
+        providers: {
+          DependyProvider<LoggerService>(
+            (_) => LoggerService('override'),
+            decorators: [
+              (logger, _) => LoggerService('override-decorated'),
+            ],
+          ),
+        },
+      );
+
+      final logger = await testModule.call<LoggerService>();
+      expect(logger.tag, equals('override-decorated'));
+    });
+
+    test('overrideWith does not inherit original decorators', () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>(
+            (_) => LoggerService('original'),
+            decorators: [
+              (logger, _) => LoggerService('original-decorated'),
+            ],
+          ),
+        },
+      );
+
+      final testModule = module.overrideWith(
+        providers: {
+          DependyProvider<LoggerService>(
+            (_) => LoggerService('override'),
+          ),
+        },
+      );
+
+      final logger = await testModule.call<LoggerService>();
+      expect(logger.tag, equals('override'));
     });
 
     test('multiple overrides in single call', () async {
@@ -1807,6 +1859,210 @@ void main() {
       expect(logger.tag, equals('test'));
       expect(client.baseUrl, equals('https://mock.api'));
       expect(userService.client.baseUrl, equals('https://mock.api'));
+    });
+  });
+
+  group('DependyModule - Decorators', () {
+    test('applies single decorator', () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>(
+            (_) => LoggerService('base'),
+            decorators: [
+              (logger, _) => LoggerService('decorated-${logger.tag}'),
+            ],
+          ),
+        },
+      );
+
+      final logger = await module.call<LoggerService>();
+      expect(logger.tag, equals('decorated-base'));
+    });
+
+    test('applies multiple decorators in order', () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>(
+            (_) => LoggerService('base'),
+            decorators: [
+              (logger, _) => LoggerService('first(${logger.tag})'),
+              (logger, _) => LoggerService('second(${logger.tag})'),
+            ],
+          ),
+        },
+      );
+
+      final logger = await module.call<LoggerService>();
+      expect(logger.tag, equals('second(first(base))'));
+    });
+
+    test('decorator receives full resolve (not restricted by dependsOn)',
+        () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<EmailService>((_) => EmailService('smtp')),
+          DependyProvider<LoggerService>(
+            (_) => LoggerService('base'),
+            decorators: [
+              (logger, resolve) async {
+                final email = await resolve<EmailService>();
+                return LoggerService('${logger.tag}+${email.provider}');
+              },
+            ],
+          ),
+        },
+      );
+
+      final logger = await module.call<LoggerService>();
+      expect(logger.tag, equals('base+smtp'));
+    });
+
+    test('decorator with async resolve', () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<HttpClient>((_) => HttpClient('https://api.com')),
+          DependyProvider<LoggerService>(
+            (_) => LoggerService('base'),
+            decorators: [
+              (logger, resolve) async {
+                final client = await resolve<HttpClient>();
+                return LoggerService('${logger.tag}@${client.baseUrl}');
+              },
+            ],
+          ),
+        },
+      );
+
+      final logger = await module.call<LoggerService>();
+      expect(logger.tag, equals('base@https://api.com'));
+    });
+
+    test('singleton decorated once — same instance on subsequent calls',
+        () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>(
+            (_) => LoggerService('base'),
+            decorators: [
+              (logger, _) => LoggerService('decorated'),
+            ],
+          ),
+        },
+      );
+
+      final a = await module.call<LoggerService>();
+      final b = await module.call<LoggerService>();
+      expect(identical(a, b), isTrue);
+      expect(a.tag, equals('decorated'));
+    });
+
+    test('transient decorated on each call — different instances', () async {
+      int callCount = 0;
+
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>(
+            (_) => LoggerService('base'),
+            transient: true,
+            decorators: [
+              (logger, _) => LoggerService('decorated-${++callCount}'),
+            ],
+          ),
+        },
+      );
+
+      final a = await module.call<LoggerService>();
+      final b = await module.call<LoggerService>();
+      expect(identical(a, b), isFalse);
+      expect(a.tag, equals('decorated-1'));
+      expect(b.tag, equals('decorated-2'));
+    });
+
+    test('decorator with tagged provider', () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>(
+            (_) => LoggerService('base'),
+            tag: 'special',
+            decorators: [
+              (logger, _) => LoggerService('decorated-${logger.tag}'),
+            ],
+          ),
+        },
+      );
+
+      final logger = await module.call<LoggerService>(tag: 'special');
+      expect(logger.tag, equals('decorated-base'));
+    });
+
+    test('provider with no decorators works as before', () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>(
+            (_) => LoggerService('plain'),
+          ),
+        },
+      );
+
+      final logger = await module.call<LoggerService>();
+      expect(logger.tag, equals('plain'));
+    });
+
+    test('debugGraph shows decorator count', () {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>(
+            (_) => LoggerService('base'),
+            decorators: [
+              (logger, _) => LoggerService('d1'),
+              (logger, _) => LoggerService('d2'),
+            ],
+          ),
+        },
+      );
+
+      final graph = module.debugGraph();
+      expect(graph, contains('decorators: 2'));
+    });
+
+    test('dispose passes decorated instance', () async {
+      LoggerService? disposed;
+
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>(
+            (_) => LoggerService('base'),
+            decorators: [
+              (logger, _) => LoggerService('decorated'),
+            ],
+            dispose: (instance) => disposed = instance,
+          ),
+        },
+      );
+
+      await module.call<LoggerService>();
+      module.dispose();
+      expect(disposed, isNotNull);
+      expect(disposed!.tag, equals('decorated'));
+    });
+  });
+
+  group('EagerDependyModule - Decorators', () {
+    test('eager module resolves decorated instances', () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>(
+            (_) => LoggerService('base'),
+            decorators: [
+              (logger, _) => LoggerService('eager-decorated'),
+            ],
+          ),
+        },
+      );
+
+      final eager = await module.asEager();
+      final logger = eager.call<LoggerService>();
+      expect(logger.tag, equals('eager-decorated'));
     });
   });
 }
