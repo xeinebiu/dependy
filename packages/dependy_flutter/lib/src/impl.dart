@@ -19,7 +19,8 @@ final class ScopedDependy {
   /// Optionally specify a [tag] to resolve a specific tagged instance.
   ///
   /// This method is safe to call multiple times, as the listener will only be registered once.
-  final Future<T> Function<T extends ChangeNotifier>({String? tag}) watchDependy;
+  final Future<T> Function<T extends ChangeNotifier>({String? tag})
+      watchDependy;
 }
 
 /// Retrieves the nearest [ScopedDependy] from the widget tree.
@@ -101,8 +102,7 @@ mixin ScopedDependyMixin<W extends StatefulWidget> on State<W> {
     return _ScopedDependyModuleProvider(
       scopedDependy: ScopedDependy._(
         <T extends Object>({String? tag}) => dependy<T>(tag: tag),
-        <T extends ChangeNotifier>({String? tag}) =>
-            watchDependy<T>(tag: tag),
+        <T extends ChangeNotifier>({String? tag}) => watchDependy<T>(tag: tag),
       ),
       moduleBuilder: _cachedModuleBuilder,
       child: child,
@@ -112,8 +112,7 @@ mixin ScopedDependyMixin<W extends StatefulWidget> on State<W> {
   /// Retrieves a dependency of type [T] from the dependency graph.
   ///
   /// Optionally specify a [tag] to resolve a specific tagged instance.
-  Future<T> dependy<T extends Object>({String? tag}) =>
-      _dependy<T>(tag: tag);
+  Future<T> dependy<T extends Object>({String? tag}) => _dependy<T>(tag: tag);
 
   /// Retrieves a [ChangeNotifier] dependency of type [T] from the dependency graph
   /// and registers a listener to rebuild the UI when the notifier changes.
@@ -207,8 +206,7 @@ class _ScopedDependyProviderState extends State<ScopedDependyProvider>
       context,
       ScopedDependy._(
         <T extends Object>({String? tag}) => dependy<T>(tag: tag),
-        <T extends ChangeNotifier>({String? tag}) =>
-            watchDependy<T>(tag: tag),
+        <T extends ChangeNotifier>({String? tag}) => watchDependy<T>(tag: tag),
       ),
     );
 
@@ -260,8 +258,7 @@ class _ScopedDependyConsumerState extends State<ScopedDependyConsumer> {
     return widget.builder(
       context,
       ScopedDependy._(
-        <T extends Object>({String? tag}) =>
-            _dependy<T>(context, tag: tag),
+        <T extends Object>({String? tag}) => _dependy<T>(context, tag: tag),
         <T extends ChangeNotifier>({String? tag}) => _dependy<T>(
           context,
           watch: true,

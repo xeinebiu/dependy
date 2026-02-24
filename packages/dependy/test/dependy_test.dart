@@ -1035,8 +1035,7 @@ void main() {
       expect(identical(console, file), isFalse);
     });
 
-    test('same type and same tag throws DependyDuplicateProviderException',
-        () {
+    test('same type and same tag throws DependyDuplicateProviderException', () {
       expect(
         () => DependyModule(
           providers: {
@@ -1244,14 +1243,12 @@ void main() {
         () => DependyModule(
           providers: {
             DependyProvider<AuthService>(
-              (resolve) async =>
-                  AuthService(await resolve<UserRepository>()),
+              (resolve) async => AuthService(await resolve<UserRepository>()),
               dependsOn: {UserRepository},
               tag: 'tagged',
             ),
             DependyProvider<UserRepository>(
-              (resolve) async =>
-                  UserRepository(await resolve<AuthService>()),
+              (resolve) async => UserRepository(await resolve<AuthService>()),
               dependsOn: {AuthService},
               tag: 'tagged',
             ),
@@ -1259,6 +1256,269 @@ void main() {
         ),
         throwsA(isA<DependyCircularDependencyException>()),
       );
+    });
+  });
+
+  group('DependyModule - debugGraph()', () {
+    test('shows module key in header', () {
+      final module = DependyModule(
+        key: 'app',
+        providers: {
+          DependyProvider<LoggerService>((_) => LoggerService()),
+        },
+      );
+
+      final graph = module.debugGraph();
+      expect(graph, startsWith('DependyModule (key: app)'));
+    });
+
+    test('shows module without key', () {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>((_) => LoggerService()),
+        },
+      );
+
+      final graph = module.debugGraph();
+      expect(graph, startsWith('DependyModule\n'));
+    });
+
+    test('shows provider type name', () {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>((_) => LoggerService()),
+        },
+      );
+
+      final graph = module.debugGraph();
+      expect(graph, contains('LoggerService'));
+    });
+
+    test('shows [singleton] lifecycle label', () {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>((_) => LoggerService()),
+        },
+      );
+
+      final graph = module.debugGraph();
+      expect(graph, contains('[singleton]'));
+    });
+
+    test('shows [transient] lifecycle label', () {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<HttpRequest>((_) => HttpRequest(), transient: true),
+        },
+      );
+
+      final graph = module.debugGraph();
+      expect(graph, contains('[transient]'));
+    });
+
+    test('shows provider key', () {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>(
+            (_) => LoggerService(),
+            key: 'my-logger',
+          ),
+        },
+      );
+
+      final graph = module.debugGraph();
+      expect(graph, contains('(key: my-logger)'));
+    });
+
+    test('shows provider tag with # prefix', () {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>(
+            (_) => LoggerService(),
+            tag: 'console',
+          ),
+        },
+      );
+
+      final graph = module.debugGraph();
+      expect(graph, contains('#console'));
+    });
+
+    test('shows pending for unresolved singleton', () {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>((_) => LoggerService()),
+        },
+      );
+
+      final graph = module.debugGraph();
+      expect(graph, contains('- pending'));
+    });
+
+    test('shows cached after resolution', () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>((_) => LoggerService()),
+        },
+      );
+
+      await module.call<LoggerService>();
+      final graph = module.debugGraph();
+      expect(graph, contains('- cached'));
+    });
+
+    test('shows always new for transient', () {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<HttpRequest>((_) => HttpRequest(), transient: true),
+        },
+      );
+
+      final graph = module.debugGraph();
+      expect(graph, contains('- always new'));
+    });
+
+    test('shows dependsOn set', () {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>((_) => LoggerService()),
+          DependyProvider<DatabaseService>(
+            (resolve) async => DatabaseService(await resolve<LoggerService>()),
+            dependsOn: {LoggerService},
+          ),
+        },
+      );
+
+      final graph = module.debugGraph();
+      expect(graph, contains('dependsOn: {LoggerService}'));
+    });
+
+    test('shows [DISPOSED] after disposal', () {
+      final module = DependyModule(
+        key: 'app',
+        providers: {
+          DependyProvider<LoggerService>((_) => LoggerService()),
+        },
+      );
+
+      module.dispose();
+      final graph = module.debugGraph();
+      expect(graph, contains('DependyModule (key: app) [DISPOSED]'));
+      expect(graph, contains('[DISPOSED]'));
+    });
+
+    test('shows submodules with [module] prefix', () {
+      final sub = DependyModule(
+        key: 'sub',
+        providers: {
+          DependyProvider<LoggerService>((_) => LoggerService()),
+        },
+      );
+
+      final module = DependyModule(
+        key: 'root',
+        providers: {},
+        modules: {sub},
+      );
+
+      final graph = module.debugGraph();
+      expect(graph, contains('[module] DependyModule (key: sub)'));
+    });
+
+    test('handles nested submodules with proper indentation', () {
+      final inner = DependyModule(
+        key: 'inner',
+        providers: {
+          DependyProvider<EmailService>((_) => EmailService()),
+        },
+      );
+
+      final outer = DependyModule(
+        key: 'outer',
+        providers: {
+          DependyProvider<LoggerService>((_) => LoggerService()),
+        },
+        modules: {inner},
+      );
+
+      final module = DependyModule(
+        key: 'root',
+        providers: {},
+        modules: {outer},
+      );
+
+      final graph = module.debugGraph();
+      expect(graph, contains('[module] DependyModule (key: outer)'));
+      expect(graph, contains('[module] DependyModule (key: inner)'));
+      // Inner module's provider should be indented further
+      expect(graph, contains('EmailService'));
+    });
+
+    test('handles empty module', () {
+      final module = DependyModule(
+        key: 'empty',
+        providers: {},
+      );
+
+      final graph = module.debugGraph();
+      expect(graph, equals('DependyModule (key: empty)'));
+    });
+
+    test('handles shared submodule references', () {
+      final shared = DependyModule(
+        key: 'shared',
+        providers: {
+          DependyProvider<LoggerService>((_) => LoggerService()),
+        },
+      );
+
+      final moduleA = DependyModule(
+        key: 'a',
+        providers: {},
+        modules: {shared},
+      );
+
+      final moduleB = DependyModule(
+        key: 'b',
+        providers: {},
+        modules: {shared},
+      );
+
+      final root = DependyModule(
+        key: 'root',
+        providers: {},
+        modules: {moduleA, moduleB},
+      );
+
+      final graph = root.debugGraph();
+      expect(graph, contains('(already listed above)'));
+    });
+  });
+
+  group('EagerDependyModule - debugGraph()', () {
+    test('shows EagerDependyModule header', () async {
+      final module = DependyModule(
+        key: 'eager-app',
+        providers: {
+          DependyProvider<LoggerService>((_) => LoggerService()),
+        },
+      );
+
+      final eager = await module.asEager();
+      final graph = eager.debugGraph();
+      expect(graph, startsWith('EagerDependyModule (key: eager-app)'));
+    });
+
+    test('shows resolved status for providers', () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>((_) => LoggerService()),
+        },
+      );
+
+      final eager = await module.asEager();
+      final graph = eager.debugGraph();
+      expect(graph, contains('- resolved'));
     });
   });
 
@@ -1414,8 +1674,7 @@ void main() {
         providers: {
           DependyProvider<LoggerService>((_) => LoggerService()),
           DependyProvider<DatabaseService>(
-            (resolve) async =>
-                DatabaseService(await resolve<LoggerService>()),
+            (resolve) async => DatabaseService(await resolve<LoggerService>()),
             dependsOn: {LoggerService},
           ),
         },
@@ -1501,8 +1760,7 @@ void main() {
         providers: {
           DependyProvider<LoggerService>((_) => LoggerService()),
           DependyProvider<DatabaseService>(
-            (resolve) async =>
-                DatabaseService(await resolve<LoggerService>()),
+            (resolve) async => DatabaseService(await resolve<LoggerService>()),
             dependsOn: {LoggerService},
           ),
         },

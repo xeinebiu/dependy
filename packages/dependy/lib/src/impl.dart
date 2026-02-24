@@ -210,6 +210,86 @@ class DependyModule {
     );
   }
 
+  /// Returns a formatted string representing the module tree structure,
+  /// including all providers and submodules.
+  ///
+  /// Useful during development for understanding and debugging the
+  /// dependency graph.
+  String debugGraph() {
+    final buffer = StringBuffer();
+    _writeDebugGraph(buffer, '', true, <DependyModule>{});
+    return buffer.toString().trimRight();
+  }
+
+  void _writeDebugGraph(
+    StringBuffer buffer,
+    String indent,
+    bool isRoot,
+    Set<DependyModule> visited,
+  ) {
+    if (isRoot) {
+      final keyLabel = _key != null ? ' (key: $_key)' : '';
+      final disposedLabel = _disposed ? ' [DISPOSED]' : '';
+      buffer.writeln('DependyModule$keyLabel$disposedLabel');
+    }
+
+    visited.add(this);
+
+    final entries = <Object>[..._providers, ..._modules];
+    for (var i = 0; i < entries.length; i++) {
+      final isLast = i == entries.length - 1;
+      final connector = isLast ? r'\-- ' : '+-- ';
+      final childIndent = indent + (isLast ? '    ' : '|   ');
+      final entry = entries[i];
+
+      if (entry is DependyProvider<Object>) {
+        _writeProviderDebug(buffer, entry, '$indent$connector', childIndent);
+      } else if (entry is DependyModule) {
+        final modKeyLabel = entry._key != null ? ' (key: ${entry._key})' : '';
+        final modDisposed = entry._disposed ? ' [DISPOSED]' : '';
+        buffer.writeln(
+          '$indent$connector[module] DependyModule$modKeyLabel$modDisposed',
+        );
+        if (!visited.contains(entry)) {
+          entry._writeDebugGraph(buffer, childIndent, false, visited);
+        } else {
+          buffer.writeln('$childIndent(already listed above)');
+        }
+      }
+    }
+  }
+
+  void _writeProviderDebug(
+    StringBuffer buffer,
+    DependyProvider<Object> provider,
+    String prefix,
+    String childIndent,
+  ) {
+    final typeName = provider._type.toString();
+    final tagLabel = provider._tag != null ? ' #${provider._tag}' : '';
+    final keyLabel = provider._key != null ? ' (key: ${provider._key})' : '';
+    final lifecycle = provider._transient ? 'transient' : 'singleton';
+    final disposedLabel = provider._disposed ? ' [DISPOSED]' : '';
+
+    String status;
+    if (provider._disposed) {
+      status = '';
+    } else if (provider._transient) {
+      status = ' - always new';
+    } else {
+      status = provider._instance != null ? ' - cached' : ' - pending';
+    }
+
+    buffer.writeln(
+      '$prefix$typeName$tagLabel [$lifecycle]$keyLabel$disposedLabel$status',
+    );
+
+    if (provider._dependsOn case final deps? when deps.isNotEmpty) {
+      final depNames = deps.map((d) => d.toString()).join(', ');
+      buffer.writeln('$childIndent dependsOn: {$depNames}');
+    }
+  }
+
   void _verify() {
     _verifyMissingProviders();
     _verifyDuplicateProviders();
@@ -303,8 +383,7 @@ class DependyModule {
     for (final provider in _providers) {
       if (provider._dependsOn case final dependencies?) {
         for (final dependency in dependencies) {
-          final exists =
-              _providers.any((p) => p._type == dependency) ||
+          final exists = _providers.any((p) => p._type == dependency) ||
               _checkDependencyInModules(
                 dependency,
                 _modules,
@@ -441,6 +520,57 @@ class EagerDependyModule {
       throw DependyProviderNotFoundException((T, _module._key));
     }
     return provider as T;
+  }
+
+  /// Returns a formatted string representing the eager module's resolved state.
+  String debugGraph() {
+    final buffer = StringBuffer();
+    final keyLabel = _module._key != null ? ' (key: ${_module._key})' : '';
+    final disposedLabel = disposed ? ' [DISPOSED]' : '';
+    buffer.writeln('EagerDependyModule$keyLabel$disposedLabel');
+    _writeEagerDebugGraph(buffer, _module, '', <DependyModule>{});
+    return buffer.toString().trimRight();
+  }
+
+  void _writeEagerDebugGraph(
+    StringBuffer buffer,
+    DependyModule module,
+    String indent,
+    Set<DependyModule> visited,
+  ) {
+    visited.add(module);
+
+    final entries = <Object>[...module._providers, ...module._modules];
+    for (var i = 0; i < entries.length; i++) {
+      final isLast = i == entries.length - 1;
+      final connector = isLast ? r'\-- ' : '+-- ';
+      final childIndent = indent + (isLast ? '    ' : '|   ');
+      final entry = entries[i];
+
+      if (entry is DependyProvider<Object>) {
+        final typeName = entry._type.toString();
+        final tagLabel = entry._tag != null ? ' #${entry._tag}' : '';
+        final lifecycle = entry._transient ? 'transient' : 'singleton';
+        final resolved =
+            _resolvedProviders.containsKey((entry._type, entry._tag));
+        final status = resolved ? ' - resolved' : ' - pending';
+        buffer
+            .writeln('$indent$connector$typeName$tagLabel [$lifecycle]$status');
+
+        if (entry._dependsOn case final deps? when deps.isNotEmpty) {
+          final depNames = deps.map((d) => d.toString()).join(', ');
+          buffer.writeln('$childIndent dependsOn: {$depNames}');
+        }
+      } else if (entry is DependyModule) {
+        final modKeyLabel = entry._key != null ? ' (key: ${entry._key})' : '';
+        buffer.writeln('$indent$connector[module] DependyModule$modKeyLabel');
+        if (!visited.contains(entry)) {
+          _writeEagerDebugGraph(buffer, entry, childIndent, visited);
+        } else {
+          buffer.writeln('$childIndent(already listed above)');
+        }
+      }
+    }
   }
 
   /// Disposes all providers in this module.

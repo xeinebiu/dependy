@@ -38,34 +38,31 @@ final databaseModule = DependyModule(
   },
 );
 
-final mainModule = DependyModule(
-  providers: {
-    DependyProvider<ApiService>(
-          (dependy) async {
-        final databaseService = await dependy<DatabaseService>();
-        return ApiService(databaseService);
-      },
-      dependsOn: {
-        DatabaseService,
-      },
-    ),
-    DependyProvider<AuthService>(
-      (_) => AuthService(),
-    ),
-    DependyProvider<PaymentService>(
-      (dependy) async {
-        final authService = await dependy<AuthService>();
-        return PaymentService(authService);
-      },
-      dependsOn: {
-        AuthService,
-      },
-    ),
-  },
-  modules: {
-    databaseModule,
-  }
-);
+final mainModule = DependyModule(providers: {
+  DependyProvider<ApiService>(
+    (dependy) async {
+      final databaseService = await dependy<DatabaseService>();
+      return ApiService(databaseService);
+    },
+    dependsOn: {
+      DatabaseService,
+    },
+  ),
+  DependyProvider<AuthService>(
+    (_) => AuthService(),
+  ),
+  DependyProvider<PaymentService>(
+    (dependy) async {
+      final authService = await dependy<AuthService>();
+      return PaymentService(authService);
+    },
+    dependsOn: {
+      AuthService,
+    },
+  ),
+}, modules: {
+  databaseModule,
+});
 
 void main() async {
   final apiService = await mainModule<ApiService>();

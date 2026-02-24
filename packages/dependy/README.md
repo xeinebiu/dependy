@@ -26,6 +26,7 @@
    - [Transient Providers](#transient-providers)
    - [Tagged Instances](#tagged-instances)
    - [Overrides for Testing](#overrides-for-testing)
+   - [Debug Graph](#debug-graph)
 9. [MIT License](#mit-license)
 
 ---
@@ -45,6 +46,7 @@ It also supports eager or lazy/asynchronous initialization, allowing services to
 - **Transient providers**: Create a fresh instance on every resolution with `transient: true`.
 - **Captive dependency detection**: Fail fast when a singleton depends on a transient provider.
 - **Overrides for testing**: Swap providers in a module for tests/mocking with `overrideWith`, without rebuilding the entire module tree.
+- **Debug graph**: Inspect the entire dependency tree with `debugGraph()` — shows types, tags, lifecycle, resolution status, and nested modules as a formatted ASCII tree.
 - **Async initialization**: Initialize services asynchronously.
 - **Eager initialization**: Initialize and prepare all services eagerly.
 
@@ -54,7 +56,7 @@ Add `dependy` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  dependy: ^1.5.0
+  dependy: ^1.6.0
 ```
 
 Then, run:
@@ -1015,6 +1017,94 @@ void main() async {
   // MOCK https://mock.test/health
 }
 ```
+
+### Debug Graph
+
+Use `debugGraph()` to inspect the module tree at any point during development. It returns a formatted ASCII string showing every provider and submodule with its type, tag, lifecycle, resolution status, and disposed state.
+
+```dart
+import 'package:dependy/dependy.dart';
+
+class LoggerService {}
+
+class DatabaseService {
+  final LoggerService logger;
+  DatabaseService(this.logger);
+}
+
+class HttpRequest {}
+
+class HttpClient {
+  final String baseUrl;
+  HttpClient(this.baseUrl);
+}
+
+Future<void> main() async {
+  final module = DependyModule(
+    key: 'app',
+    providers: {
+      DependyProvider<LoggerService>((_) => LoggerService()),
+      DependyProvider<DatabaseService>(
+        (resolve) async => DatabaseService(await resolve<LoggerService>()),
+        dependsOn: {LoggerService},
+      ),
+      DependyProvider<HttpRequest>((_) => HttpRequest(), transient: true),
+    },
+    modules: {
+      DependyModule(
+        key: 'http_module',
+        providers: {
+          DependyProvider<HttpClient>(
+            (_) => HttpClient('https://api.example.com'),
+            tag: 'api',
+          ),
+          DependyProvider<HttpClient>(
+            (_) => HttpClient('https://cdn.example.com'),
+            tag: 'cdn',
+          ),
+        },
+      ),
+    },
+  );
+
+  // Before resolution — all singletons are pending
+  print(module.debugGraph());
+  // DependyModule (key: app)
+  // +-- LoggerService [singleton] - pending
+  // +-- DatabaseService [singleton] - pending
+  // |    dependsOn: {LoggerService}
+  // +-- HttpRequest [transient] - always new
+  // \-- [module] DependyModule (key: http_module)
+  //     +-- HttpClient #api [singleton] - pending
+  //     \-- HttpClient #cdn [singleton] - pending
+
+  // After resolving DatabaseService
+  await module.call<DatabaseService>();
+  print(module.debugGraph());
+  // DependyModule (key: app)
+  // +-- LoggerService [singleton] - cached
+  // +-- DatabaseService [singleton] - cached
+  // |    dependsOn: {LoggerService}
+  // +-- HttpRequest [transient] - always new
+  // \-- [module] DependyModule (key: http_module)
+  //     +-- HttpClient #api [singleton] - pending
+  //     \-- HttpClient #cdn [singleton] - pending
+
+  // After disposal
+  module.dispose();
+  print(module.debugGraph());
+  // DependyModule (key: app) [DISPOSED]
+  // +-- LoggerService [singleton] [DISPOSED]
+  // +-- DatabaseService [singleton] [DISPOSED]
+  // |    dependsOn: {LoggerService}
+  // +-- HttpRequest [transient] [DISPOSED]
+  // \-- [module] DependyModule (key: http_module)
+  //     +-- HttpClient #api [singleton] - pending
+  //     \-- HttpClient #cdn [singleton] - pending
+}
+```
+
+`EagerDependyModule` also supports `debugGraph()`, showing `resolved` status for eagerly initialized providers.
 
 ---
 

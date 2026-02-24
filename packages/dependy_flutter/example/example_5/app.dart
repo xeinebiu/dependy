@@ -39,8 +39,7 @@ class _MyAppState extends State<MyApp> with ScopedDependyMixin {
     /// In this case, on entire App Level
     return shareDependyScope(
       child: MaterialApp(
-        title:
-            'Example 5 (Share Multiple Scopes using ScopedDependyMixin)',
+        title: 'Example 5 (Share Multiple Scopes using ScopedDependyMixin)',
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
           useMaterial3: true,

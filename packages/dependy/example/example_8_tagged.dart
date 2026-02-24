@@ -72,5 +72,6 @@ void main() async {
   final cacheService = await module<CacheService>();
 
   print(userService.fetchUser(42)); // GET https://api.example.com/users/42
-  print(cacheService.fetchAsset('style.css')); // GET https://cdn.example.com/assets/style.css
+  print(cacheService
+      .fetchAsset('style.css')); // GET https://cdn.example.com/assets/style.css
 }

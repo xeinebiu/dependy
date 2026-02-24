@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.6.0
+
+### Features
+
+* **Debug graph**: Added `debugGraph()` method to `DependyModule` and `EagerDependyModule`. Returns a
+  formatted ASCII tree of the entire dependency graph showing provider types, tags, keys, lifecycle
+  (singleton/transient), resolution status (pending/cached/always new), disposed state, and nested
+  submodules. Useful during development for inspecting what's registered and resolved.
+
+---
+
 ## 1.5.0
 
 ### Features
