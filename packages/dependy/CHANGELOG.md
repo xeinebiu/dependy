@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.8.0
+
+### Features
+
+* **Provider reset**: Added `reset()` method to `DependyProvider` and `reset<T>({tag})` to
+  `DependyModule`. Clears the cached singleton instance and calls the dispose callback on the old
+  instance, but keeps the provider usable — the next resolution re-runs the factory and decorators
+  to create a fresh instance. Cascades automatically — any cached provider whose `dependsOn`
+  includes the reset type is also reset, and so on transitively. Useful for logout flows,
+  environment switches, and test state cleanup. No-op for transient providers (nothing cached) and
+  already-disposed providers. `EagerDependyModule` does not support reset (it is inherently
+  eager/pre-resolved). `debugGraph()` shows `pending` after reset.
+
+---
+
 ## 1.7.0
 
 ### Features

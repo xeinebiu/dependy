@@ -41,6 +41,7 @@ final class DependyProvider<T extends Object> {
   final Type _type;
   final bool _transient;
   final List<DependyDecorate<T>> _decorators;
+
   int get _decoratorCount => _decorators.length;
 
   T? _instance;
@@ -55,6 +56,23 @@ final class DependyProvider<T extends Object> {
 
     _instance = null;
     _disposed = true;
+  }
+
+  /// Resets the provider by clearing the cached instance.
+  ///
+  /// If the provider has a resolved instance, the [dispose] callback
+  /// is called on it before clearing.
+  ///
+  /// Unlike [dispose], the provider remains usable — the next resolution
+  /// will re-run the factory (and decorators) to create a fresh instance.
+  ///
+  /// No-op for transient providers (no cached instance) and
+  /// already-disposed providers.
+  void reset() {
+    if (_disposed || _transient) return;
+
+    _dispose?.call(_instance);
+    _instance = null;
   }
 
   /// Checks if the provider matches the given [type] and [tag].
@@ -131,6 +149,7 @@ class DependyModule {
   final String? _key;
 
   bool _disposed = false;
+
   bool get disposed => _disposed;
 
   /// Disposes all providers in this module.
@@ -163,41 +182,110 @@ class DependyModule {
       throw DependyModuleDisposedException((this, _key));
     }
 
-    final visited = <DependyModule>{};
-    return _callWithModules<T>(this, visited, tag: tag);
+    final found = _findProviderInGraph<T>(this, <DependyModule>{}, tag: tag);
+    if (found == null) {
+      throw DependyProviderNotFoundException((T, _key));
+    }
+
+    final (provider, owningModule) = found;
+    return await provider._create(
+      <K extends Object>({String? tag}) => owningModule.call<K>(tag: tag),
+    ) as T;
   }
 
-  Future<T> _callWithModules<T extends Object>(
+  /// Resets the cached instance for the provider matching type [T] and
+  /// optional [tag].
+  ///
+  /// The provider's [dispose] callback is called on the old instance
+  /// before clearing. The next [call] will re-create the instance.
+  ///
+  /// Cascades automatically — any cached provider whose [dependsOn]
+  /// includes [T] is also reset, and so on transitively.
+  ///
+  /// Throws [DependyModuleDisposedException] if the module is disposed.
+  /// Throws [DependyProviderNotFoundException] if no matching provider
+  /// is found in this module or its submodules.
+  void reset<T extends Object>({String? tag}) {
+    if (_disposed) {
+      throw DependyModuleDisposedException((this, _key));
+    }
+
+    final found = _findProviderInGraph<T>(this, <DependyModule>{}, tag: tag);
+    if (found == null) {
+      throw DependyProviderNotFoundException((T, _key));
+    }
+
+    found.$1.reset();
+    _cascadeReset({T}, this);
+  }
+
+  /// Walks the module graph depth-first, calling [visitor] for each provider.
+  ///
+  /// If [visitor] returns `true`, the walk stops early.
+  /// Returns `true` if any visitor call short-circuited.
+  static bool _walkProviders(
     DependyModule module,
-    Set<DependyModule> visited, {
-    String? tag,
-  }) async {
-    // First check in current module
+    Set<DependyModule> visited,
+    bool Function(DependyProvider<Object> provider, DependyModule module)
+        visitor,
+  ) {
     for (final provider in module._providers) {
-      if (provider._matches(T, tag)) {
-        return await provider._create(
-          <K extends Object>({String? tag}) => module.call<K>(tag: tag),
-        ) as T;
-      }
+      if (visitor(provider, module)) return true;
     }
 
     visited.add(module);
 
-    // Check in other modules
-    for (final module in module._modules) {
-      if (!visited.contains(module)) {
-        try {
-          return await module._callWithModules<T>(module, visited, tag: tag);
-        } catch (e) {
-          // Continue searching, do not throw if not found
-          if (e is! DependyProviderNotFoundException) {
-            rethrow;
-          }
-        }
+    for (final sub in module._modules) {
+      if (!visited.contains(sub)) {
+        if (_walkProviders(sub, visited, visitor)) return true;
       }
     }
 
-    throw DependyProviderNotFoundException((T, _key));
+    return false;
+  }
+
+  /// Walks the module graph to find the first provider matching [T] and [tag].
+  ///
+  /// Returns the provider and the module it belongs to, or `null` if not found.
+  static (DependyProvider<Object>, DependyModule)?
+      _findProviderInGraph<T extends Object>(
+    DependyModule module,
+    Set<DependyModule> visited, {
+    String? tag,
+  }) {
+    (DependyProvider<Object>, DependyModule)? result;
+    _walkProviders(module, visited, (provider, owningModule) {
+      if (provider._matches(T, tag)) {
+        result = (provider, owningModule);
+        return true;
+      }
+      return false;
+    });
+    return result;
+  }
+
+  static void _cascadeReset(
+    Set<Type> resetTypes,
+    DependyModule root,
+  ) {
+    final newlyReset = <Type>{};
+
+    _walkProviders(root, <DependyModule>{}, (provider, _) {
+      if (provider._disposed || provider._transient) return false;
+      if (provider._instance == null) return false;
+
+      if (provider._dependsOn case final deps?) {
+        if (deps.any(resetTypes.contains)) {
+          provider.reset();
+          newlyReset.add(provider._type);
+        }
+      }
+      return false;
+    });
+
+    if (newlyReset.isNotEmpty) {
+      _cascadeReset(newlyReset, root);
+    }
   }
 
   /// Creates a new [DependyModule] with the given [providers] replacing any
@@ -235,25 +323,43 @@ class DependyModule {
   /// dependency graph.
   String debugGraph() {
     final buffer = StringBuffer();
-    _writeDebugGraph(buffer, '', true, <DependyModule>{});
+    _writeDebugGraph(buffer, '', <DependyModule>{});
     return buffer.toString().trimRight();
   }
 
   void _writeDebugGraph(
     StringBuffer buffer,
     String indent,
-    bool isRoot,
     Set<DependyModule> visited,
   ) {
-    if (isRoot) {
-      final keyLabel = _key != null ? ' (key: $_key)' : '';
-      final disposedLabel = _disposed ? ' [DISPOSED]' : '';
-      buffer.writeln('DependyModule$keyLabel$disposedLabel');
-    }
+    final keyLabel = _key != null ? ' (key: $_key)' : '';
+    final disposedLabel = _disposed ? ' [DISPOSED]' : '';
+    buffer.writeln('DependyModule$keyLabel$disposedLabel');
 
-    visited.add(this);
+    _writeModuleDebugGraph(
+      buffer,
+      this,
+      indent,
+      visited,
+      _writeProviderDebug,
+    );
+  }
 
-    final entries = <Object>[..._providers, ..._modules];
+  static void _writeModuleDebugGraph(
+    StringBuffer buffer,
+    DependyModule module,
+    String indent,
+    Set<DependyModule> visited,
+    void Function(
+      StringBuffer buffer,
+      DependyProvider<Object> provider,
+      String prefix,
+      String childIndent,
+    ) writeProvider,
+  ) {
+    visited.add(module);
+
+    final entries = <Object>[...module._providers, ...module._modules];
     for (var i = 0; i < entries.length; i++) {
       final isLast = i == entries.length - 1;
       final connector = isLast ? r'\-- ' : '+-- ';
@@ -261,7 +367,7 @@ class DependyModule {
       final entry = entries[i];
 
       if (entry is DependyProvider<Object>) {
-        _writeProviderDebug(buffer, entry, '$indent$connector', childIndent);
+        writeProvider(buffer, entry, '$indent$connector', childIndent);
       } else if (entry is DependyModule) {
         final modKeyLabel = entry._key != null ? ' (key: ${entry._key})' : '';
         final modDisposed = entry._disposed ? ' [DISPOSED]' : '';
@@ -269,7 +375,13 @@ class DependyModule {
           '$indent$connector[module] DependyModule$modKeyLabel$modDisposed',
         );
         if (!visited.contains(entry)) {
-          entry._writeDebugGraph(buffer, childIndent, false, visited);
+          _writeModuleDebugGraph(
+            buffer,
+            entry,
+            childIndent,
+            visited,
+            writeProvider,
+          );
         } else {
           buffer.writeln('$childIndent(already listed above)');
         }
@@ -277,7 +389,7 @@ class DependyModule {
     }
   }
 
-  void _writeProviderDebug(
+  static void _writeProviderDebug(
     StringBuffer buffer,
     DependyProvider<Object> provider,
     String prefix,
@@ -379,28 +491,11 @@ class DependyModule {
   /// Finds all providers of the given [type] across this module and submodules.
   List<DependyProvider<Object>> _findAllProviders(Type type) {
     final result = <DependyProvider<Object>>[];
-    _collectProviders(type, this, result, <DependyModule>{});
+    _walkProviders(this, <DependyModule>{}, (provider, _) {
+      if (provider._type == type) result.add(provider);
+      return false;
+    });
     return result;
-  }
-
-  static void _collectProviders(
-    Type type,
-    DependyModule module,
-    List<DependyProvider<Object>> result,
-    Set<DependyModule> visited,
-  ) {
-    if (visited.contains(module)) return;
-    visited.add(module);
-
-    for (final provider in module._providers) {
-      if (provider._type == type) {
-        result.add(provider);
-      }
-    }
-
-    for (final submodule in module._modules) {
-      _collectProviders(type, submodule, result, visited);
-    }
   }
 
   void _verifyMissingProviders() {
@@ -500,6 +595,7 @@ class EagerDependyModule {
   bool get disposed => _module.disposed;
 
   bool _initialized = false;
+
   bool get initialized => _initialized;
 
   /// Initializes all providers asynchronously. This should be called before any `call<T>()` is made.
@@ -552,54 +648,41 @@ class EagerDependyModule {
     final keyLabel = _module._key != null ? ' (key: ${_module._key})' : '';
     final disposedLabel = disposed ? ' [DISPOSED]' : '';
     buffer.writeln('EagerDependyModule$keyLabel$disposedLabel');
-    _writeEagerDebugGraph(buffer, _module, '', <DependyModule>{});
+
+    DependyModule._writeModuleDebugGraph(
+      buffer,
+      _module,
+      '',
+      <DependyModule>{},
+      _writeEagerProviderDebug,
+    );
+
     return buffer.toString().trimRight();
   }
 
-  void _writeEagerDebugGraph(
+  void _writeEagerProviderDebug(
     StringBuffer buffer,
-    DependyModule module,
-    String indent,
-    Set<DependyModule> visited,
+    DependyProvider<Object> provider,
+    String prefix,
+    String childIndent,
   ) {
-    visited.add(module);
+    final typeName = provider._type.toString();
+    final tagLabel = provider._tag != null ? ' #${provider._tag}' : '';
+    final lifecycle = provider._transient ? 'transient' : 'singleton';
+    final resolved =
+        _resolvedProviders.containsKey((provider._type, provider._tag));
+    final status = resolved ? ' - resolved' : ' - pending';
+    buffer.writeln('$prefix$typeName$tagLabel [$lifecycle]$status');
 
-    final entries = <Object>[...module._providers, ...module._modules];
-    for (var i = 0; i < entries.length; i++) {
-      final isLast = i == entries.length - 1;
-      final connector = isLast ? r'\-- ' : '+-- ';
-      final childIndent = indent + (isLast ? '    ' : '|   ');
-      final entry = entries[i];
+    if (provider._dependsOn case final deps? when deps.isNotEmpty) {
+      final depNames = deps.map((d) => d.toString()).join(', ');
+      buffer.writeln('$childIndent dependsOn: {$depNames}');
+    }
 
-      if (entry is DependyProvider<Object>) {
-        final typeName = entry._type.toString();
-        final tagLabel = entry._tag != null ? ' #${entry._tag}' : '';
-        final lifecycle = entry._transient ? 'transient' : 'singleton';
-        final resolved =
-            _resolvedProviders.containsKey((entry._type, entry._tag));
-        final status = resolved ? ' - resolved' : ' - pending';
-        buffer
-            .writeln('$indent$connector$typeName$tagLabel [$lifecycle]$status');
-
-        if (entry._dependsOn case final deps? when deps.isNotEmpty) {
-          final depNames = deps.map((d) => d.toString()).join(', ');
-          buffer.writeln('$childIndent dependsOn: {$depNames}');
-        }
-
-        if (entry._decoratorCount > 0) {
-          buffer.writeln(
-            '$childIndent decorators: ${entry._decoratorCount}',
-          );
-        }
-      } else if (entry is DependyModule) {
-        final modKeyLabel = entry._key != null ? ' (key: ${entry._key})' : '';
-        buffer.writeln('$indent$connector[module] DependyModule$modKeyLabel');
-        if (!visited.contains(entry)) {
-          _writeEagerDebugGraph(buffer, entry, childIndent, visited);
-        } else {
-          buffer.writeln('$childIndent(already listed above)');
-        }
-      }
+    if (provider._decoratorCount > 0) {
+      buffer.writeln(
+        '$childIndent decorators: ${provider._decoratorCount}',
+      );
     }
   }
 

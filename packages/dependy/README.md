@@ -28,6 +28,7 @@
    - [Overrides for Testing](#overrides-for-testing)
    - [Debug Graph](#debug-graph)
    - [Provider Decorators](#provider-decorators)
+   - [Provider Reset](#provider-reset)
 9. [MIT License](#mit-license)
 
 ---
@@ -48,6 +49,7 @@ It also supports eager or lazy/asynchronous initialization, allowing services to
 - **Captive dependency detection**: Fail fast when a singleton depends on a transient provider.
 - **Overrides for testing**: Swap providers in a module for tests/mocking with `overrideWith`, without rebuilding the entire module tree.
 - **Provider decorators**: Wrap resolved instances with composable transformations (logging, caching, retry, auth) applied after the factory, inside singleton caching. Decorators receive full module resolve and are applied in list order.
+- **Provider reset**: Clear a cached singleton with `reset()` (provider) or `reset<T>({tag})` (module) — calls the dispose callback, then re-creates on next access. Cascades automatically to all consumers that `dependsOn` the reset type. Ideal for logout flows, environment switches, and test state cleanup. No-op for transient and disposed providers.
 - **Debug graph**: Inspect the entire dependency tree with `debugGraph()` — shows types, tags, lifecycle, resolution status, decorator counts, and nested modules as a formatted ASCII tree.
 - **Async initialization**: Initialize services asynchronously.
 - **Eager initialization**: Initialize and prepare all services eagerly.
@@ -58,7 +60,7 @@ Add `dependy` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  dependy: ^1.7.0
+  dependy: ^1.8.0
 ```
 
 Then, run:
@@ -1218,6 +1220,82 @@ void main() async {
 - **Order matters** — decorators are applied in list order. First decorator wraps the raw instance, second wraps the first's output, etc.
 - **Decorators receive full module resolve** — they can resolve any type available in the module hierarchy, not just types listed in `dependsOn`.
 - **`overrideWith`** replaces the whole provider including its decorators. The override's own decorators (if any) are used; the original's decorators are not inherited.
+
+### Provider Reset
+
+Use `reset()` to clear a cached singleton and let it re-create on next access — without disposing the provider or rebuilding the module. Useful for logout flows, environment switches, and test state cleanup.
+
+```dart
+import 'package:dependy/dependy.dart';
+
+class AuthService {
+  final String? currentUser;
+
+  AuthService({this.currentUser});
+
+  bool get isLoggedIn => currentUser != null;
+
+  @override
+  String toString() => 'AuthService(user: $currentUser)';
+}
+
+class UserRepository {
+  final AuthService auth;
+
+  UserRepository(this.auth);
+
+  @override
+  String toString() => 'UserRepository(auth: $auth)';
+}
+
+void main() async {
+  final module = DependyModule(
+    key: 'app',
+    providers: {
+      DependyProvider<AuthService>(
+        (_) => AuthService(currentUser: 'alice@example.com'),
+        dispose: (auth) {
+          if (auth != null) {
+            print('Cleaning up session for ${auth.currentUser}');
+          }
+        },
+      ),
+      DependyProvider<UserRepository>(
+        (resolve) async => UserRepository(await resolve<AuthService>()),
+        dependsOn: {AuthService},
+      ),
+    },
+  );
+
+  // First resolution — cached singletons
+  final auth = await module.call<AuthService>();
+  final repo = await module.call<UserRepository>();
+  print('auth: $auth');                                      // AuthService(user: alice@example.com)
+  print('repo.auth is same? ${identical(repo.auth, auth)}'); // true
+
+  // Simulate logout — reset cascades to UserRepository automatically
+  module.reset<AuthService>();
+  // Prints: Cleaning up session for alice@example.com
+
+  print(module.debugGraph());
+  // AuthService [singleton] - pending
+  // UserRepository [singleton] - pending
+
+  // Re-resolve — everything is fresh and re-wired
+  final freshAuth = await module.call<AuthService>();
+  final freshRepo = await module.call<UserRepository>();
+  print('Same auth? ${identical(auth, freshAuth)}');             // false
+  print('Same repo? ${identical(repo, freshRepo)}');             // false
+  print('repo got fresh auth? ${identical(freshRepo.auth, freshAuth)}'); // true
+}
+```
+
+**Key points:**
+- `reset()` calls the dispose callback on the old instance before clearing — resources (DB connections, sessions) are properly cleaned up.
+- The provider stays alive — the next `call()` re-runs the factory and decorators.
+- **Cascades automatically** — any cached provider whose `dependsOn` includes the reset type is also reset, and so on transitively. No stale references.
+- No-op for **transient** providers (nothing cached) and **disposed** providers.
+- `EagerDependyModule` does **not** support `reset()` — it is inherently eager/pre-resolved.
 
 ---
 

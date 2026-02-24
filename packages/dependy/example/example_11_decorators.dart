@@ -32,7 +32,8 @@ class RetryApiClient implements ApiClient {
   }
 
   @override
-  String toString() => 'RetryApiClient(maxRetries: $maxRetries, inner: $_inner)';
+  String toString() =>
+      'RetryApiClient(maxRetries: $maxRetries, inner: $_inner)';
 }
 
 class LoggerService {

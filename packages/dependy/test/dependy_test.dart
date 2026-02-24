@@ -1755,8 +1755,7 @@ void main() {
       expect(logger.tag, equals('prod'));
     });
 
-    test(
-        'captive dependency detection still runs on overridden module', () {
+    test('captive dependency detection still runs on overridden module', () {
       final module = DependyModule(
         providers: {
           DependyProvider<LoggerService>((_) => LoggerService()),
@@ -2044,6 +2043,364 @@ void main() {
       module.dispose();
       expect(disposed, isNotNull);
       expect(disposed!.tag, equals('decorated'));
+    });
+  });
+
+  group('DependyModule - reset()', () {
+    test('reset clears cached singleton — next call creates new instance',
+        () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>((_) => LoggerService('cached')),
+        },
+      );
+
+      final first = await module.call<LoggerService>();
+      expect(first.tag, equals('cached'));
+
+      module.reset<LoggerService>();
+
+      final second = await module.call<LoggerService>();
+      expect(second.tag, equals('cached'));
+      expect(identical(first, second), isFalse);
+    });
+
+    test('reset calls dispose callback on old instance', () async {
+      LoggerService? disposed;
+
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>(
+            (_) => LoggerService('disposable'),
+            dispose: (instance) => disposed = instance,
+          ),
+        },
+      );
+
+      final first = await module.call<LoggerService>();
+      expect(disposed, isNull);
+
+      module.reset<LoggerService>();
+      expect(disposed, isNotNull);
+      expect(identical(disposed, first), isTrue);
+    });
+
+    test('reset is no-op on transient provider', () async {
+      HttpRequest.reset();
+
+      final module = DependyModule(
+        providers: {
+          DependyProvider<HttpRequest>(
+            (_) => HttpRequest(),
+            transient: true,
+          ),
+        },
+      );
+
+      final a = await module.call<HttpRequest>();
+      module.reset<HttpRequest>();
+      final b = await module.call<HttpRequest>();
+
+      // Transient already creates fresh instances; reset doesn't break it
+      expect(identical(a, b), isFalse);
+    });
+
+    test('reset is no-op on disposed provider', () async {
+      final provider = DependyProvider<LoggerService>(
+        (_) => LoggerService('test'),
+      );
+
+      final module = DependyModule(providers: {provider});
+      await module.call<LoggerService>();
+
+      // Dispose the provider directly
+      provider.dispose();
+      // reset after dispose should not throw
+      provider.reset();
+      expect(provider.disposed, isTrue);
+    });
+
+    test('reset on never-resolved provider is safe', () async {
+      LoggerService? disposed;
+      bool disposeCalled = false;
+
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>(
+            (_) => LoggerService('never-resolved'),
+            dispose: (instance) {
+              disposeCalled = true;
+              disposed = instance;
+            },
+          ),
+        },
+      );
+
+      // Reset before ever calling — should not throw
+      module.reset<LoggerService>();
+      expect(disposeCalled, isTrue);
+      expect(disposed, isNull);
+    });
+
+    test('module.reset<T>() resets provider by type', () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>((_) => LoggerService('by-type')),
+        },
+      );
+
+      final first = await module.call<LoggerService>();
+      module.reset<LoggerService>();
+      final second = await module.call<LoggerService>();
+
+      expect(identical(first, second), isFalse);
+    });
+
+    test('module.reset<T>(tag:) resets tagged provider', () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>(
+            (_) => LoggerService('api'),
+            tag: 'api',
+          ),
+          DependyProvider<LoggerService>(
+            (_) => LoggerService('cdn'),
+            tag: 'cdn',
+          ),
+        },
+      );
+
+      final apiBefore = await module.call<LoggerService>(tag: 'api');
+      final cdnBefore = await module.call<LoggerService>(tag: 'cdn');
+
+      module.reset<LoggerService>(tag: 'api');
+
+      final apiAfter = await module.call<LoggerService>(tag: 'api');
+      final cdnAfter = await module.call<LoggerService>(tag: 'cdn');
+
+      // api was reset — different instance
+      expect(identical(apiBefore, apiAfter), isFalse);
+      // cdn was NOT reset — same instance
+      expect(identical(cdnBefore, cdnAfter), isTrue);
+    });
+
+    test('module.reset<T>() throws on disposed module', () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>((_) => LoggerService()),
+        },
+      );
+
+      module.dispose();
+
+      expect(
+        () => module.reset<LoggerService>(),
+        throwsA(isA<DependyModuleDisposedException>()),
+      );
+    });
+
+    test('module.reset<T>() throws for unregistered type', () {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>((_) => LoggerService()),
+        },
+      );
+
+      expect(
+        () => module.reset<HttpRequest>(),
+        throwsA(isA<DependyProviderNotFoundException>()),
+      );
+    });
+
+    test('module.reset<T>() searches submodules', () async {
+      final subModule = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>((_) => LoggerService('sub')),
+        },
+      );
+
+      final module = DependyModule(
+        providers: {},
+        modules: {subModule},
+      );
+
+      final first = await module.call<LoggerService>();
+      module.reset<LoggerService>();
+      final second = await module.call<LoggerService>();
+
+      expect(identical(first, second), isFalse);
+    });
+
+    test('reset re-runs decorators on next resolve', () async {
+      int decoratorCallCount = 0;
+
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>(
+            (_) => LoggerService('base'),
+            decorators: [
+              (logger, _) {
+                decoratorCallCount++;
+                return LoggerService('decorated-$decoratorCallCount');
+              },
+            ],
+          ),
+        },
+      );
+
+      final first = await module.call<LoggerService>();
+      expect(first.tag, equals('decorated-1'));
+      expect(decoratorCallCount, equals(1));
+
+      module.reset<LoggerService>();
+
+      final second = await module.call<LoggerService>();
+      expect(second.tag, equals('decorated-2'));
+      expect(decoratorCallCount, equals(2));
+      expect(identical(first, second), isFalse);
+    });
+
+    test('reset does not affect other providers', () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>((_) => LoggerService('logger')),
+          DependyProvider<EmailService>((_) => EmailService('email')),
+        },
+      );
+
+      final loggerBefore = await module.call<LoggerService>();
+      final emailBefore = await module.call<EmailService>();
+
+      module.reset<LoggerService>();
+
+      final loggerAfter = await module.call<LoggerService>();
+      final emailAfter = await module.call<EmailService>();
+
+      // Logger was reset — different instance
+      expect(identical(loggerBefore, loggerAfter), isFalse);
+      // Email was NOT reset — same instance
+      expect(identical(emailBefore, emailAfter), isTrue);
+    });
+
+    test('reset cascades to consumers that dependsOn the reset type', () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>((_) => LoggerService('dep')),
+          DependyProvider<DatabaseService>(
+            (resolve) async => DatabaseService(await resolve<LoggerService>()),
+            dependsOn: {LoggerService},
+          ),
+        },
+      );
+
+      final loggerBefore = await module.call<LoggerService>();
+      final dbBefore = await module.call<DatabaseService>();
+      expect(identical(dbBefore.logger, loggerBefore), isTrue);
+
+      // Reset the dependency — consumer is cascaded automatically
+      module.reset<LoggerService>();
+
+      final loggerAfter = await module.call<LoggerService>();
+      final dbAfter = await module.call<DatabaseService>();
+
+      // Both are fresh instances
+      expect(identical(loggerBefore, loggerAfter), isFalse);
+      expect(identical(dbBefore, dbAfter), isFalse);
+      // Consumer got the new dependency
+      expect(identical(dbAfter.logger, loggerAfter), isTrue);
+    });
+
+    test('reset cascades transitively through dependency chain', () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>((_) => LoggerService('root')),
+          DependyProvider<DatabaseService>(
+            (resolve) async => DatabaseService(await resolve<LoggerService>()),
+            dependsOn: {LoggerService},
+          ),
+          DependyProvider<ApiClient>(
+            (resolve) async => ApiClient(await resolve<DatabaseService>()),
+            dependsOn: {DatabaseService},
+          ),
+        },
+      );
+
+      final loggerBefore = await module.call<LoggerService>();
+      final dbBefore = await module.call<DatabaseService>();
+      final apiBefore = await module.call<ApiClient>();
+
+      // Reset the root dependency — should cascade through the whole chain
+      module.reset<LoggerService>();
+
+      final loggerAfter = await module.call<LoggerService>();
+      final dbAfter = await module.call<DatabaseService>();
+      final apiAfter = await module.call<ApiClient>();
+
+      expect(identical(loggerBefore, loggerAfter), isFalse);
+      expect(identical(dbBefore, dbAfter), isFalse);
+      expect(identical(apiBefore, apiAfter), isFalse);
+      // Whole chain re-wired
+      expect(identical(apiAfter.database.logger, loggerAfter), isTrue);
+    });
+
+    test('reset cascade does not affect unrelated providers', () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>((_) => LoggerService('dep')),
+          DependyProvider<DatabaseService>(
+            (resolve) async => DatabaseService(await resolve<LoggerService>()),
+            dependsOn: {LoggerService},
+          ),
+          DependyProvider<EmailService>((_) => EmailService('unrelated')),
+        },
+      );
+
+      final emailBefore = await module.call<EmailService>();
+      await module.call<LoggerService>();
+      await module.call<DatabaseService>();
+
+      module.reset<LoggerService>();
+
+      final emailAfter = await module.call<EmailService>();
+      // Unrelated provider is untouched
+      expect(identical(emailBefore, emailAfter), isTrue);
+    });
+
+    test('reset cascade skips unresolved consumers', () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>((_) => LoggerService('dep')),
+          DependyProvider<DatabaseService>(
+            (resolve) async => DatabaseService(await resolve<LoggerService>()),
+            dependsOn: {LoggerService},
+          ),
+        },
+      );
+
+      // Resolve only the dependency, NOT the consumer
+      await module.call<LoggerService>();
+
+      // Reset should not throw even though DatabaseService was never resolved
+      module.reset<LoggerService>();
+
+      // Consumer resolves fresh with the new dependency
+      final db = await module.call<DatabaseService>();
+      final logger = await module.call<LoggerService>();
+      expect(identical(db.logger, logger), isTrue);
+    });
+
+    test('debugGraph shows pending after reset', () async {
+      final module = DependyModule(
+        providers: {
+          DependyProvider<LoggerService>((_) => LoggerService()),
+        },
+      );
+
+      await module.call<LoggerService>();
+      expect(module.debugGraph(), contains('- cached'));
+
+      module.reset<LoggerService>();
+      expect(module.debugGraph(), contains('- pending'));
     });
   });
 
